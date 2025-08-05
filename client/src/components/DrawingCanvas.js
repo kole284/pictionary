@@ -19,7 +19,7 @@ const DrawingCanvas = ({ isDrawing, onDraw, onClear, drawingHistory }) => {
     context.strokeStyle = color;
     context.lineWidth = brushSize;
     contextRef.current = context;
-  }, []);
+  }, [color, brushSize]);
 
   useEffect(() => {
     if (contextRef.current) {
