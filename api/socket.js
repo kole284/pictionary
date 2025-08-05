@@ -1,26 +1,14 @@
 const express = require('express');
-const { createServer } = require('http');
-const { Server } = require('socket.io');
 const cors = require('cors');
 
 const app = express();
-const server = createServer(app);
-
-// Configure Socket.IO with CORS
-const io = new Server(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
-  },
-  transports: ['polling', 'websocket']
-});
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
-// Game state
-const gameState = {
+// In-memory game state (for serverless, this will reset on each function call)
+let gameState = {
   players: [],
   currentDrawer: null,
   currentWord: '',
@@ -87,31 +75,43 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Socket.IO connection handling
-io.on('connection', (socket) => {
-  console.log('User connected:', socket.id);
+// REST API endpoints for game state
+app.get('/api/game-state', (req, res) => {
+  res.json({
+    players: gameState.players,
+    gameStarted: gameState.gameStarted,
+    inLobby: gameState.inLobby,
+    roundNumber: gameState.roundNumber,
+    timeLeft: gameState.timeLeft,
+    drawingHistory: gameState.drawingHistory,
+    currentDrawer: gameState.currentDrawer
+  });
+});
 
-  // Join game room
-  socket.on('joinGame', (playerName) => {
-    const player = {
-      id: socket.id,
-      name: playerName,
-      score: 0,
-      isDrawing: false
-    };
+app.post('/api/join-game', (req, res) => {
+  const { playerName } = req.body;
+  
+  if (!playerName) {
+    return res.status(400).json({ error: 'Player name is required' });
+  }
 
-    gameState.players.push(player);
-    socket.join('gameRoom');
+  const player = {
+    id: Date.now().toString(), // Simple ID for serverless
+    name: playerName,
+    score: 0,
+    isDrawing: false
+  };
 
-    console.log(`Player ${playerName} joined. Total players: ${gameState.players.length}`);
+  gameState.players.push(player);
 
-    // Set host if this is the first player
-    if (gameState.players.length === 1) {
-      gameState.host = socket.id;
-    }
+  // Set host if this is the first player
+  if (gameState.players.length === 1) {
+    gameState.host = player.id;
+  }
 
-    // Send current game state to all players
-    io.to('gameRoom').emit('gameState', {
+  res.json({
+    playerId: player.id,
+    gameState: {
       players: gameState.players,
       gameStarted: gameState.gameStarted,
       inLobby: gameState.inLobby,
@@ -119,232 +119,35 @@ io.on('connection', (socket) => {
       timeLeft: gameState.timeLeft,
       drawingHistory: gameState.drawingHistory,
       currentDrawer: gameState.currentDrawer
-    });
-  });
-
-  // Start game
-  socket.on('startGame', () => {
-    if (socket.id === gameState.host && gameState.players.length >= 2) {
-      startGame();
-    }
-  });
-
-  // Drawing events
-  socket.on('draw', (data) => {
-    if (socket.id === gameState.currentDrawer) {
-      gameState.drawingHistory.push(data);
-      socket.to('gameRoom').emit('draw', data);
-    }
-  });
-
-  // Clear canvas
-  socket.on('clearCanvas', () => {
-    if (socket.id === gameState.currentDrawer) {
-      gameState.drawingHistory = [];
-      io.to('gameRoom').emit('clearCanvas');
-    }
-  });
-
-  // Chat message
-  socket.on('chatMessage', (message) => {
-    const player = gameState.players.find(p => p.id === socket.id);
-    if (player) {
-      const chatMessage = {
-        player: player.name,
-        message: message,
-        timestamp: new Date().toLocaleTimeString()
-      };
-
-      io.to('gameRoom').emit('chatMessage', chatMessage);
-
-      // Check if message is correct guess
-      if (gameState.currentWord && 
-          message.toLowerCase().trim() === gameState.currentWord.toLowerCase() &&
-          socket.id !== gameState.currentDrawer) {
-        
-        // Award points
-        const guesser = gameState.players.find(p => p.id === socket.id);
-        const drawer = gameState.players.find(p => p.id === gameState.currentDrawer);
-        
-        if (guesser) guesser.score += 10;
-        if (drawer) drawer.score += 5;
-
-        // Emit correct guess event
-        io.to('gameRoom').emit('correctGuess', {
-          player: guesser.name,
-          word: gameState.currentWord,
-          scores: gameState.players.map(p => ({ name: p.name, score: p.score }))
-        });
-
-        // End round early
-        if (gameState.currentTimer) {
-          clearInterval(gameState.currentTimer);
-          gameState.currentTimer = null;
-        }
-        
-        setTimeout(() => {
-          nextRound();
-        }, 2000);
-      }
-    }
-  });
-
-  // Request game state
-  socket.on('requestGameState', () => {
-    socket.emit('gameState', {
-      players: gameState.players,
-      gameStarted: gameState.gameStarted,
-      inLobby: gameState.inLobby,
-      roundNumber: gameState.roundNumber,
-      timeLeft: gameState.timeLeft,
-      drawingHistory: gameState.drawingHistory,
-      currentDrawer: gameState.currentDrawer
-    });
-  });
-
-  // Disconnect handling
-  socket.on('disconnect', () => {
-    console.log('User disconnected:', socket.id);
-    
-    // Remove player from game
-    gameState.players = gameState.players.filter(p => p.id !== socket.id);
-    
-    // If no players left, reset game
-    if (gameState.players.length === 0) {
-      resetGameState();
-    } else {
-      // Update host if needed
-      if (gameState.host === socket.id) {
-        gameState.host = gameState.players[0].id;
-      }
-      
-      // Update game state for remaining players
-      io.to('gameRoom').emit('gameState', {
-        players: gameState.players,
-        gameStarted: gameState.gameStarted,
-        inLobby: gameState.inLobby,
-        roundNumber: gameState.roundNumber,
-        timeLeft: gameState.timeLeft,
-        drawingHistory: gameState.drawingHistory,
-        currentDrawer: gameState.currentDrawer
-      });
     }
   });
 });
 
-// Game functions
-function startGame() {
-  console.log('Starting game');
+// Game functions for REST API
+app.post('/api/start-game', (req, res) => {
+  const { playerId } = req.body;
+  
+  if (playerId !== gameState.host) {
+    return res.status(403).json({ error: 'Only host can start the game' });
+  }
+  
+  if (gameState.players.length < 2) {
+    return res.status(400).json({ error: 'Need at least 2 players' });
+  }
+  
   gameState.gameStarted = true;
   gameState.inLobby = false;
   gameState.roundNumber = 1;
   
-  io.to('gameRoom').emit('gameStarted', {
-    gameStarted: true,
-    inLobby: false,
-    roundNumber: 1
-  });
-  
-  startRound();
-}
-
-function startRound() {
-  console.log('Starting round', gameState.roundNumber);
-  
-  // Select drawer
-  const availablePlayers = gameState.players.filter(p => p.id !== gameState.currentDrawer);
-  if (availablePlayers.length === 0) {
-    availablePlayers.push(...gameState.players);
-  }
-  
-  const randomIndex = Math.floor(Math.random() * availablePlayers.length);
-  gameState.currentDrawer = availablePlayers[randomIndex].id;
-  
-  console.log('Selected drawer:', gameState.currentDrawer, 'Player name:', availablePlayers[randomIndex].name);
-
-  // Select random word
-  gameState.currentWord = words[Math.floor(Math.random() * words.length)];
-  gameState.timeLeft = gameState.roundTime;
-  gameState.drawingHistory = [];
-
-  console.log('Selected word:', gameState.currentWord);
-
-  // Clear canvas for all players first
-  io.to('gameRoom').emit('clearCanvas');
-
-  // Notify all players about the new round
-  io.to('gameRoom').emit('newRound', {
-    drawer: gameState.currentDrawer,
-    roundNumber: gameState.roundNumber,
-    timeLeft: gameState.timeLeft,
-    players: gameState.players
-  });
-
-  // Send the word only to the drawer
-  io.to(gameState.currentDrawer).emit('drawingWord', gameState.currentWord);
-
-  console.log('Starting timer...');
-  // Start timer
-  startTimer();
-}
-
-function startTimer() {
-  // Clear any existing timer
-  if (gameState.currentTimer) {
-    clearInterval(gameState.currentTimer);
-  }
-  
-  gameState.currentTimer = setInterval(() => {
-    gameState.timeLeft--;
-    
-    io.to('gameRoom').emit('timeUpdate', gameState.timeLeft);
-
-    if (gameState.timeLeft <= 0) {
-      clearInterval(gameState.currentTimer);
-      gameState.currentTimer = null;
-      // Time's up, move to next round
-      setTimeout(() => {
-        nextRound();
-      }, 2000);
+  res.json({
+    success: true,
+    gameState: {
+      gameStarted: true,
+      inLobby: false,
+      roundNumber: 1
     }
-  }, 1000);
-}
-
-function nextRound() {
-  // Clear current timer
-  if (gameState.currentTimer) {
-    clearInterval(gameState.currentTimer);
-    gameState.currentTimer = null;
-  }
-  
-  gameState.roundNumber++;
-  gameState.drawingHistory = [];
-  
-  if (gameState.roundNumber > gameState.maxRounds) {
-    endGame();
-  } else {
-    startRound();
-  }
-}
-
-function endGame() {
-  console.log('Game ended, resetting state');
-  gameState.gameStarted = false;
-  const winner = gameState.players.reduce((prev, current) => 
-    (prev.score > current.score) ? prev : current
-  );
-  
-  io.to('gameRoom').emit('gameEnded', {
-    winner: winner,
-    finalScores: gameState.players.sort((a, b) => b.score - a.score)
   });
-  
-  // Reset game state after a delay
-  setTimeout(() => {
-    console.log('Resetting game state');
-    resetGameState();
-  }, 5000);
-}
+});
 
 // Export for Vercel
 module.exports = app; 
