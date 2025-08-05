@@ -5,7 +5,7 @@
   "framework": "create-react-app",
   "functions": {
     "api/socket.js": {
-      "runtime": "nodejs18.x"
+      "runtime": "nodejs"
     }
   },
   "rewrites": [
