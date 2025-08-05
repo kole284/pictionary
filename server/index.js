@@ -509,12 +509,13 @@ server.listen(PORT, HOST, () => {
     timestamp: Date.now()
   };
   
-  // Start LAN discovery system
+  // Always start LAN discovery automatically
   startLANDiscovery();
   
   console.log(`🌐 LAN Discovery: Active on port ${DISCOVERY_PORT}`);
   console.log(`📱 Local IP addresses: ${serverInfo.localIPs.join(', ')}`);
   console.log(`🎮 Other devices on the same network will automatically discover this server`);
+  console.log(`✨ No setup required - just run 'npm start' and others can join!`);
 });
 
 // Cleanup on server shutdown

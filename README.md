@@ -56,25 +56,34 @@ A real-time multiplayer drawing game built with React, Node.js, and Socket.IO.
 4. **Open your browser**
    - Open `http://localhost:3000` in your browser
 
+**Za LAN igru:**
+   ```bash
+   # Pokreni server (LAN discovery se automatski pokreće)
+   npm start
+   
+   # Ostali igrači: Otvori aplikaciju → "🌐 Find Local Games"
+   ```
+
 ### Za LAN igru (više igrača na istoj WiFi mreži)
 
-🎮 **Automatski LAN Discovery** - Kao Minecraft!
+🎮 **Potpuno automatski LAN Discovery** - Kao Minecraft!
 
 Aplikacija automatski prepoznaje druge servere na istoj mreži i omogućava direktno povezivanje.
 
 **Kako koristiti:**
-1. Pokreni server na jednom uređaju: `npm run lan`
-2. Ostali igrači otvaraju aplikaciju u browseru
-3. Klikni "🌐 Find Local Games" na login ekranu
-4. Aplikacija će automatski pronaći dostupne servere
-5. Klikni "🎮 Join Game" da se povežeš
+1. **Host:** Pokreni server: `npm start` (LAN discovery se automatski pokreće)
+2. **Ostali igrači:** Otvori aplikaciju u browseru
+3. **Automatsko prepoznavanje:** Klikni "🌐 Find Local Games" na login ekranu
+4. **Direktno povezivanje:** Klikni "🎮 Join Game" na pronađenom serveru
 
 **Prednosti:**
-- ✅ Automatsko prepoznavanje servera
-- ✅ Nema potrebe za ručnim unosom IP adresa
-- ✅ Radi na svim uređajima (desktop, tablet, mobilni)
-- ✅ Niska latencija (lokalna mreža)
-- ✅ Bezbedno (samo lokalna mreža)
+- ✅ **Potpuno automatsko** - nema potrebe za posebnim komandama
+- ✅ **Automatsko prepoznavanje** servera na istoj mreži
+- ✅ **Nema potrebe za ručnim unosom** IP adresa
+- ✅ **Radi na svim uređajima** (desktop, tablet, mobilni)
+- ✅ **Niska latencija** (lokalna mreža)
+- ✅ **Bezbedno** (samo lokalna mreža)
+- ✅ **Spremno za deployment** na Vercel
 
 ## 🎮 How to Play
 
