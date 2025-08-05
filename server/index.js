@@ -8,7 +8,7 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: "http://localhost:3000",
+    origin: "*", // Allow connections from any origin for LAN play
     methods: ["GET", "POST"]
   }
 });
@@ -388,6 +388,14 @@ app.get('*', (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+const HOST = '0.0.0.0'; // Listen on all network interfaces for LAN access
+
+server.listen(PORT, HOST, () => {
+  console.log(`🚀 Server running on http://${HOST}:${PORT}`);
+  console.log(`🌐 For LAN play, other players should connect to:`);
+  console.log(`   http://YOUR_LOCAL_IP:${PORT}`);
+  console.log(`   (Replace YOUR_LOCAL_IP with your computer's IP address)`);
+  console.log(`📱 You can find your IP address by running:`);
+  console.log(`   - Linux/Mac: ifconfig or ip addr`);
+  console.log(`   - Windows: ipconfig`);
 }); 

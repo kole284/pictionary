@@ -33,6 +33,8 @@ A real-time multiplayer drawing game built with React, Node.js, and Socket.IO.
 
 ## 🚀 Installation & Setup
 
+### Za lokalnu igru (samo ti)
+
 1. **Clone or download the project**
    ```bash
    # If you have the files locally, navigate to the project directory
@@ -41,32 +43,34 @@ A real-time multiplayer drawing game built with React, Node.js, and Socket.IO.
 
 2. **Install dependencies**
    ```bash
-   # Install server dependencies
-   npm install
-   
-   # Install client dependencies
-   cd client
-   npm install
-   cd ..
+   # Install all dependencies (server + client)
+   npm run install-all
    ```
 
 3. **Start the development servers**
    ```bash
    # Start both server and client (recommended)
    npm run dev
-   
-   # Or start them separately:
-   # Terminal 1 - Start the server
-   npm run server
-   
-   # Terminal 2 - Start the client
-   npm run client
    ```
 
 4. **Open your browser**
-   - Server runs on: `http://localhost:5000`
-   - Client runs on: `http://localhost:3000`
    - Open `http://localhost:3000` in your browser
+
+### Za LAN igru (više igrača na istoj WiFi mreži)
+
+**Pogledaj detaljne instrukcije u [LAN_INSTRUCTIONS.md](LAN_INSTRUCTIONS.md)**
+
+Brzi start za LAN:
+```bash
+# 1. Instaliraj sve
+npm run install-all
+
+# 2. Pokreni server
+npm run lan
+
+# 3. Host: http://localhost:5000
+# 4. Ostali igrači: http://[YOUR_IP]:5000
+```
 
 ## 🎮 How to Play
 

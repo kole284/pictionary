@@ -5,7 +5,10 @@ import Lobby from './components/Lobby';
 import GameScreen from './components/GameScreen';
 import GameEndScreen from './components/GameEndScreen';
 
-const SOCKET_URL = 'http://localhost:5000';
+// Automatically detect server URL for LAN play
+const SOCKET_URL = window.location.hostname === 'localhost' 
+  ? 'http://localhost:5000' 
+  : `http://${window.location.hostname}:5000`;
 
 function App() {
   const [socket, setSocket] = useState(null);
