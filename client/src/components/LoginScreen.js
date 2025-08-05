@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
+import LANDiscovery from './LANDiscovery';
 
-const LoginScreen = ({ onLogin }) => {
+const LoginScreen = ({ onLogin, onServerFound }) => {
   const [playerName, setPlayerName] = useState('');
+  const [showLANDiscovery, setShowLANDiscovery] = useState(false);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -49,7 +51,24 @@ const LoginScreen = ({ onLogin }) => {
           <p>⏱️ Svaki krug traje 90 sekundi</p>
           <p>👥 Minimum 2 igrača potrebno</p>
         </div>
+        
+        <div style={{ marginTop: '20px', textAlign: 'center' }}>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => setShowLANDiscovery(!showLANDiscovery)}
+            style={{ marginBottom: '10px' }}
+          >
+            {showLANDiscovery ? '🔽 Hide LAN Discovery' : '🌐 Find Local Games'}
+          </button>
+        </div>
       </div>
+      
+      {showLANDiscovery && (
+        <div className="card" style={{ maxWidth: '600px', margin: '20px auto' }}>
+          <LANDiscovery onServerFound={onServerFound} />
+        </div>
+      )}
     </div>
   );
 };

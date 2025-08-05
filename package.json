@@ -10,13 +10,14 @@
     "client": "cd client && npm start",
     "build": "cd client && npm run build",
     "install-all": "npm install && cd client && npm install && cd ..",
-    "lan": "npm run build && npm start",
-    "lan-dev": "npm run build && nodemon server/index.js"
+    "lan": "npm run build && npm start"
   },
   "dependencies": {
     "express": "^4.18.2",
     "socket.io": "^4.7.2",
-    "cors": "^2.8.5"
+    "cors": "^2.8.5",
+    "dgram": "^1.0.1",
+    "os": "^0.1.2"
   },
   "devDependencies": {
     "nodemon": "^3.0.1",

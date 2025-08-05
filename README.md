@@ -58,19 +58,23 @@ A real-time multiplayer drawing game built with React, Node.js, and Socket.IO.
 
 ### Za LAN igru (više igrača na istoj WiFi mreži)
 
-**Pogledaj detaljne instrukcije u [LAN_INSTRUCTIONS.md](LAN_INSTRUCTIONS.md)**
+🎮 **Automatski LAN Discovery** - Kao Minecraft!
 
-Brzi start za LAN:
-```bash
-# 1. Instaliraj sve
-npm run install-all
+Aplikacija automatski prepoznaje druge servere na istoj mreži i omogućava direktno povezivanje.
 
-# 2. Pokreni server
-npm run lan
+**Kako koristiti:**
+1. Pokreni server na jednom uređaju: `npm run lan`
+2. Ostali igrači otvaraju aplikaciju u browseru
+3. Klikni "🌐 Find Local Games" na login ekranu
+4. Aplikacija će automatski pronaći dostupne servere
+5. Klikni "🎮 Join Game" da se povežeš
 
-# 3. Host: http://localhost:5000
-# 4. Ostali igrači: http://[YOUR_IP]:5000
-```
+**Prednosti:**
+- ✅ Automatsko prepoznavanje servera
+- ✅ Nema potrebe za ručnim unosom IP adresa
+- ✅ Radi na svim uređajima (desktop, tablet, mobilni)
+- ✅ Niska latencija (lokalna mreža)
+- ✅ Bezbedno (samo lokalna mreža)
 
 ## 🎮 How to Play
 

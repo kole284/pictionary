@@ -419,4 +419,147 @@ code {
   .lobby-content {
     grid-template-columns: 1fr;
   }
+  
+  .discovery-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .discovery-controls {
+    justify-content: center;
+  }
+  
+  .server-item {
+    flex-direction: column;
+    gap: 10px;
+    text-align: center;
+  }
+}
+
+/* LAN Discovery Styles */
+.lan-discovery {
+  padding: 20px;
+}
+
+.discovery-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.discovery-header h3 {
+  margin: 0;
+  color: #333;
+}
+
+.discovery-controls {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.btn-secondary {
+  background: linear-gradient(45deg, #6c757d, #495057);
+}
+
+.btn-secondary:hover {
+  background: linear-gradient(45deg, #5a6268, #343a40);
+}
+
+.error-message {
+  background: #f8d7da;
+  color: #721c24;
+  padding: 10px;
+  border-radius: 8px;
+  margin-bottom: 15px;
+  border: 1px solid #f5c6cb;
+}
+
+.scanning-status {
+  background: #d1ecf1;
+  color: #0c5460;
+  padding: 10px;
+  border-radius: 8px;
+  margin-bottom: 15px;
+  border: 1px solid #bee5eb;
+  text-align: center;
+}
+
+.discovered-servers {
+  margin-top: 20px;
+}
+
+.discovered-servers h4 {
+  color: #333;
+  margin-bottom: 15px;
+}
+
+.no-servers {
+  text-align: center;
+  color: #666;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.server-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.server-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+  transition: all 0.3s ease;
+}
+
+.server-item:hover {
+  background: #e9ecef;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.server-info {
+  flex: 1;
+}
+
+.server-name {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 5px;
+}
+
+.server-address {
+  font-family: monospace;
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 5px;
+}
+
+.server-status {
+  font-size: 12px;
+  color: #28a745;
+}
+
+.discovery-info {
+  margin-top: 20px;
+  padding: 15px;
+  background: #e7f3ff;
+  border-radius: 8px;
+  border: 1px solid #b3d9ff;
+}
+
+.discovery-info p {
+  margin: 0;
+  color: #0056b3;
+  font-size: 14px;
 } 

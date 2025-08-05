@@ -5,24 +5,32 @@ import Lobby from './components/Lobby';
 import GameScreen from './components/GameScreen';
 import GameEndScreen from './components/GameEndScreen';
 
-// Automatically detect server URL for LAN play
-const SOCKET_URL = window.location.hostname === 'localhost' 
-  ? 'http://localhost:5000' 
-  : `http://${window.location.hostname}:5000`;
-
 function App() {
   const [socket, setSocket] = useState(null);
   const [playerName, setPlayerName] = useState('');
   const [gameState, setGameState] = useState(null);
   const [currentScreen, setCurrentScreen] = useState('login');
   const [error, setError] = useState('');
+  const [serverUrl, setServerUrl] = useState(null);
+
+  // Automatically detect server URL for LAN play
+  const getSocketUrl = () => {
+    if (serverUrl) {
+      return serverUrl;
+    }
+    return window.location.hostname === 'localhost' 
+      ? 'http://localhost:5000' 
+      : `http://${window.location.hostname}:5000`;
+  };
 
   useEffect(() => {
-    const newSocket = io(SOCKET_URL);
+    if (!getSocketUrl()) return;
+    
+    const newSocket = io(getSocketUrl());
     setSocket(newSocket);
 
     newSocket.on('connect', () => {
-      console.log('Connected to server');
+      console.log('Connected to server:', getSocketUrl());
     });
 
     newSocket.on('disconnect', () => {
@@ -57,7 +65,7 @@ function App() {
     return () => {
       newSocket.close();
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleLogin = (name) => {
     if (socket && name.trim()) {
@@ -65,6 +73,51 @@ function App() {
       socket.emit('joinGame', name);
       setCurrentScreen('loading');
     }
+  };
+
+  const handleServerFound = (url) => {
+    setServerUrl(url);
+    // Reconnect to the new server
+    if (socket) {
+      socket.disconnect();
+    }
+    const newSocket = io(url);
+    setSocket(newSocket);
+    
+    // Set up socket event listeners
+    newSocket.on('connect', () => {
+      console.log('Connected to LAN server:', url);
+    });
+    
+    newSocket.on('disconnect', () => {
+      console.log('Disconnected from LAN server');
+      setError('Disconnected from LAN server. Please refresh the page.');
+    });
+    
+    // Copy other event listeners from the main useEffect
+    newSocket.on('gameState', (state) => {
+      setGameState(state);
+      if (state.gameStarted && !state.inLobby) {
+        setCurrentScreen('game');
+      } else if (state.inLobby) {
+        setCurrentScreen('lobby');
+      }
+    });
+
+    newSocket.on('gameStarted', (data) => {
+      setGameState(prev => ({ ...prev, ...data }));
+      setCurrentScreen('game');
+    });
+
+    newSocket.on('gameEnded', (data) => {
+      setGameState(prev => ({ ...prev, ...data }));
+      setCurrentScreen('gameEnd');
+    });
+
+    newSocket.on('gameStopped', (message) => {
+      setError(message);
+      setCurrentScreen('login');
+    });
   };
 
   const handleStartGame = () => {
@@ -96,7 +149,7 @@ function App() {
 
   switch (currentScreen) {
     case 'login':
-      return <LoginScreen onLogin={handleLogin} />;
+      return <LoginScreen onLogin={handleLogin} onServerFound={handleServerFound} />;
     case 'loading':
       return <div className="loading">Waiting for players...</div>;
     case 'lobby':

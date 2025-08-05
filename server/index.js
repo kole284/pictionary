@@ -3,6 +3,8 @@ const http = require('http');
 const socketIo = require('socket.io');
 const cors = require('cors');
 const path = require('path');
+const dgram = require('dgram');
+const os = require('os');
 
 const app = express();
 const server = http.createServer(app);
@@ -17,6 +19,23 @@ const io = socketIo(server, {
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../client/build')));
+
+// Health check endpoint for LAN discovery
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    game: 'pictionary',
+    version: '1.0.0',
+    players: gameState.players.length,
+    gameStarted: gameState.gameStarted,
+    timestamp: Date.now()
+  });
+});
+
+// LAN Discovery Configuration
+const DISCOVERY_PORT = 41234;
+const DISCOVERY_MESSAGE = 'PICTIONARY_LAN_DISCOVERY';
+const BROADCAST_ADDRESS = '255.255.255.255';
 
 // Game state
 const gameState = {
@@ -33,6 +52,95 @@ const gameState = {
   host: null,
   currentTimer: null
 };
+
+// LAN Discovery System
+let discoverySocket = null;
+let serverInfo = null;
+
+function getLocalIPAddresses() {
+  const interfaces = os.networkInterfaces();
+  const addresses = [];
+  
+  for (const name of Object.keys(interfaces)) {
+    for (const interface of interfaces[name]) {
+      // Skip internal and non-IPv4 addresses
+      if (interface.family === 'IPv4' && !interface.internal) {
+        addresses.push(interface.address);
+      }
+    }
+  }
+  
+  return addresses;
+}
+
+function startLANDiscovery() {
+  try {
+    discoverySocket = dgram.createSocket('udp4');
+    
+    discoverySocket.on('error', (err) => {
+      console.log('LAN Discovery socket error:', err);
+    });
+    
+    discoverySocket.on('message', (msg, rinfo) => {
+      const message = msg.toString();
+      
+      if (message === DISCOVERY_MESSAGE) {
+        // Another server is looking for games
+        const response = JSON.stringify({
+          type: 'PICTIONARY_SERVER_FOUND',
+          serverInfo: serverInfo,
+          timestamp: Date.now()
+        });
+        
+        discoverySocket.send(response, rinfo.port, rinfo.address);
+        console.log(`LAN Discovery: Responded to ${rinfo.address}:${rinfo.port}`);
+      } else if (message.startsWith('PICTIONARY_SERVER_FOUND')) {
+        // Found another server
+        try {
+          const data = JSON.parse(message);
+          console.log(`LAN Discovery: Found server at ${rinfo.address}:${data.serverInfo.port}`);
+        } catch (e) {
+          console.log('LAN Discovery: Invalid server response');
+        }
+      }
+    });
+    
+    discoverySocket.bind(DISCOVERY_PORT, () => {
+      discoverySocket.setBroadcast(true);
+      console.log(`LAN Discovery: Listening on port ${DISCOVERY_PORT}`);
+      
+      // Broadcast our presence every 30 seconds
+      setInterval(() => {
+        broadcastPresence();
+      }, 30000);
+      
+      // Initial broadcast
+      broadcastPresence();
+    });
+    
+  } catch (error) {
+    console.log('LAN Discovery: Failed to start', error);
+  }
+}
+
+function broadcastPresence() {
+  if (!discoverySocket || !serverInfo) return;
+  
+  try {
+    const message = Buffer.from(DISCOVERY_MESSAGE);
+    discoverySocket.send(message, DISCOVERY_PORT, BROADCAST_ADDRESS);
+    console.log('LAN Discovery: Broadcasting presence');
+  } catch (error) {
+    console.log('LAN Discovery: Failed to broadcast', error);
+  }
+}
+
+function stopLANDiscovery() {
+  if (discoverySocket) {
+    discoverySocket.close();
+    discoverySocket = null;
+  }
+}
 
 // Reset game state function
 function resetGameState() {
@@ -392,10 +500,32 @@ const HOST = '0.0.0.0'; // Listen on all network interfaces for LAN access
 
 server.listen(PORT, HOST, () => {
   console.log(`🚀 Server running on http://${HOST}:${PORT}`);
-  console.log(`🌐 For LAN play, other players should connect to:`);
-  console.log(`   http://YOUR_LOCAL_IP:${PORT}`);
-  console.log(`   (Replace YOUR_LOCAL_IP with your computer's IP address)`);
-  console.log(`📱 You can find your IP address by running:`);
-  console.log(`   - Linux/Mac: ifconfig or ip addr`);
-  console.log(`   - Windows: ipconfig`);
+  
+  // Initialize server info for LAN discovery
+  serverInfo = {
+    port: PORT,
+    hostname: os.hostname(),
+    localIPs: getLocalIPAddresses(),
+    timestamp: Date.now()
+  };
+  
+  // Start LAN discovery system
+  startLANDiscovery();
+  
+  console.log(`🌐 LAN Discovery: Active on port ${DISCOVERY_PORT}`);
+  console.log(`📱 Local IP addresses: ${serverInfo.localIPs.join(', ')}`);
+  console.log(`🎮 Other devices on the same network will automatically discover this server`);
+});
+
+// Cleanup on server shutdown
+process.on('SIGINT', () => {
+  console.log('\n🛑 Shutting down server...');
+  stopLANDiscovery();
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+  console.log('\n🛑 Shutting down server...');
+  stopLANDiscovery();
+  process.exit(0);
 }); 
