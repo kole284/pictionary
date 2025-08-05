@@ -3,11 +3,6 @@
   "outputDirectory": "client/build",
   "installCommand": "npm run install-all",
   "framework": "create-react-app",
-  "functions": {
-    "api/socket.js": {
-      "runtime": "nodejs18.x"
-    }
-  },
   "rewrites": [
     {
       "source": "/socket.io/(.*)",
