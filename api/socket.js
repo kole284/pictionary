@@ -95,11 +95,18 @@ app.post('/api/join-game', (req, res) => {
     return res.status(400).json({ error: 'Player name is required' });
   }
 
+  // Check if player with same name already exists
+  const existingPlayer = gameState.players.find(p => p.name === playerName);
+  if (existingPlayer) {
+    return res.status(400).json({ error: 'Player with this name already exists' });
+  }
+
   const player = {
     id: Date.now().toString(), // Simple ID for serverless
     name: playerName,
     score: 0,
-    isDrawing: false
+    isDrawing: false,
+    lastSeen: Date.now()
   };
 
   gameState.players.push(player);
@@ -147,6 +154,74 @@ app.post('/api/start-game', (req, res) => {
       roundNumber: 1
     }
   });
+});
+
+// Heartbeat endpoint to keep players active
+app.post('/api/heartbeat', (req, res) => {
+  const { playerId } = req.body;
+  
+  if (!playerId) {
+    return res.status(400).json({ error: 'Player ID is required' });
+  }
+
+  const player = gameState.players.find(p => p.id === playerId);
+  if (player) {
+    player.lastSeen = Date.now();
+    res.json({ success: true });
+  } else {
+    res.status(404).json({ error: 'Player not found' });
+  }
+});
+
+// Leave game endpoint
+app.post('/api/leave-game', (req, res) => {
+  const { playerId } = req.body;
+  
+  if (!playerId) {
+    return res.status(400).json({ error: 'Player ID is required' });
+  }
+
+  // Remove player from game
+  gameState.players = gameState.players.filter(p => p.id !== playerId);
+  
+  // If no players left, reset game
+  if (gameState.players.length === 0) {
+    resetGameState();
+  } else {
+    // Update host if needed
+    if (gameState.host === playerId) {
+      gameState.host = gameState.players[0].id;
+    }
+  }
+
+  res.json({ success: true });
+});
+
+// Cleanup inactive players (called periodically)
+app.post('/api/cleanup', (req, res) => {
+  const now = Date.now();
+  const inactiveThreshold = 30000; // 30 seconds
+  
+  // Remove inactive players
+  const activePlayers = gameState.players.filter(p => 
+    (now - p.lastSeen) < inactiveThreshold
+  );
+  
+  if (activePlayers.length !== gameState.players.length) {
+    gameState.players = activePlayers;
+    
+    // Update host if needed
+    if (gameState.players.length > 0 && !gameState.players.find(p => p.id === gameState.host)) {
+      gameState.host = gameState.players[0].id;
+    }
+    
+    // Reset game if no players left
+    if (gameState.players.length === 0) {
+      resetGameState();
+    }
+  }
+  
+  res.json({ success: true, activePlayers: gameState.players.length });
 });
 
 // Export for Vercel

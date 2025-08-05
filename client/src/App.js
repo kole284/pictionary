@@ -35,12 +35,22 @@ function App() {
     return `${protocol}//${window.location.hostname}:5000`;
   };
 
-  // Poll game state every 2 seconds
+  // Poll game state and send heartbeat every 2 seconds
   useEffect(() => {
     if (!playerId) return;
     
     const pollGameState = async () => {
       try {
+        // Send heartbeat
+        await fetch(`${getApiUrl()}/api/heartbeat`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ playerId }),
+        });
+        
+        // Get game state
         const response = await fetch(`${getApiUrl()}/api/game-state`);
         if (response.ok) {
           const state = await response.json();
@@ -60,6 +70,43 @@ function App() {
     
     const interval = setInterval(pollGameState, 2000);
     return () => clearInterval(interval);
+  }, [playerId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Cleanup inactive players every 10 seconds
+  useEffect(() => {
+    if (!playerId) return;
+    
+    const cleanup = async () => {
+      try {
+        await fetch(`${getApiUrl()}/api/cleanup`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+      } catch (error) {
+        console.error('Failed to cleanup:', error);
+      }
+    };
+    
+    const interval = setInterval(cleanup, 10000);
+    return () => clearInterval(interval);
+  }, [playerId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (playerId) {
+        // Send leave game request when component unmounts
+        fetch(`${getApiUrl()}/api/leave-game`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ playerId }),
+        }).catch(console.error);
+      }
+    };
   }, [playerId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleLogin = async (name) => {
@@ -123,7 +170,25 @@ function App() {
     }
   };
 
-  const handlePlayAgain = () => {
+  const handlePlayAgain = async () => {
+    // Leave current game
+    if (playerId) {
+      try {
+        await fetch(`${getApiUrl()}/api/leave-game`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ playerId }),
+        });
+      } catch (error) {
+        console.error('Failed to leave game:', error);
+      }
+    }
+    
+    // Reset state
+    setPlayerId(null);
+    setPlayerName('');
     setCurrentScreen('login');
     setGameState(null);
     setError('');
