@@ -1,20 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import io from 'socket.io-client';
 import LoginScreen from './components/LoginScreen';
 import Lobby from './components/Lobby';
 import GameScreen from './components/GameScreen';
 import GameEndScreen from './components/GameEndScreen';
 
 function App() {
-  const [socket, setSocket] = useState(null);
+  const [playerId, setPlayerId] = useState(null);
   const [playerName, setPlayerName] = useState('');
   const [gameState, setGameState] = useState(null);
   const [currentScreen, setCurrentScreen] = useState('login');
   const [error, setError] = useState('');
   const [serverUrl, setServerUrl] = useState(null);
 
-  // Automatically detect server URL for LAN play
-  const getSocketUrl = () => {
+  // Automatically detect server URL for API calls
+  const getApiUrl = () => {
     if (serverUrl) {
       return serverUrl;
     }
@@ -36,106 +35,91 @@ function App() {
     return `${protocol}//${window.location.hostname}:5000`;
   };
 
+  // Poll game state every 2 seconds
   useEffect(() => {
-    if (!getSocketUrl()) return;
+    if (!playerId) return;
     
-    const newSocket = io(getSocketUrl());
-    setSocket(newSocket);
-
-    newSocket.on('connect', () => {
-      console.log('Connected to server:', getSocketUrl());
-    });
-
-    newSocket.on('disconnect', () => {
-      console.log('Disconnected from server');
-      setError('Disconnected from server. Please refresh the page.');
-    });
-
-    newSocket.on('gameState', (state) => {
-      setGameState(state);
-      if (state.gameStarted && !state.inLobby) {
-        setCurrentScreen('game');
-      } else if (state.inLobby) {
-        setCurrentScreen('lobby');
+    const pollGameState = async () => {
+      try {
+        const response = await fetch(`${getApiUrl()}/api/game-state`);
+        if (response.ok) {
+          const state = await response.json();
+          setGameState(state);
+          
+          if (state.gameStarted && !state.inLobby) {
+            setCurrentScreen('game');
+          } else if (state.inLobby) {
+            setCurrentScreen('lobby');
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch game state:', error);
+        setError('Failed to connect to server. Please refresh the page.');
       }
-    });
-
-    newSocket.on('gameStarted', (data) => {
-      setGameState(prev => ({ ...prev, ...data }));
-      setCurrentScreen('game');
-    });
-
-    newSocket.on('gameEnded', (data) => {
-      setGameState(prev => ({ ...prev, ...data }));
-      setCurrentScreen('gameEnd');
-    });
-
-    newSocket.on('gameStopped', (message) => {
-      setError(message);
-      setCurrentScreen('login');
-    });
-
-    return () => {
-      newSocket.close();
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    
+    const interval = setInterval(pollGameState, 2000);
+    return () => clearInterval(interval);
+  }, [playerId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleLogin = (name) => {
-    if (socket && name.trim()) {
-      setPlayerName(name);
-      socket.emit('joinGame', name);
-      setCurrentScreen('loading');
+  const handleLogin = async (name) => {
+    if (name.trim()) {
+      try {
+        const response = await fetch(`${getApiUrl()}/api/join-game`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ playerName: name }),
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setPlayerId(data.playerId);
+          setPlayerName(name);
+          setGameState(data.gameState);
+          setCurrentScreen('loading');
+        } else {
+          setError('Failed to join game. Please try again.');
+        }
+      } catch (error) {
+        console.error('Failed to join game:', error);
+        setError('Failed to connect to server. Please try again.');
+      }
     }
   };
 
   const handleServerFound = (url) => {
     setServerUrl(url);
-    // Reconnect to the new server
-    if (socket) {
-      socket.disconnect();
-    }
-    const newSocket = io(url);
-    setSocket(newSocket);
-    
-    // Set up socket event listeners
-    newSocket.on('connect', () => {
-      console.log('Connected to LAN server:', url);
-    });
-    
-    newSocket.on('disconnect', () => {
-      console.log('Disconnected from LAN server');
-      setError('Disconnected from LAN server. Please refresh the page.');
-    });
-    
-    // Copy other event listeners from the main useEffect
-    newSocket.on('gameState', (state) => {
-      setGameState(state);
-      if (state.gameStarted && !state.inLobby) {
-        setCurrentScreen('game');
-      } else if (state.inLobby) {
-        setCurrentScreen('lobby');
-      }
-    });
-
-    newSocket.on('gameStarted', (data) => {
-      setGameState(prev => ({ ...prev, ...data }));
-      setCurrentScreen('game');
-    });
-
-    newSocket.on('gameEnded', (data) => {
-      setGameState(prev => ({ ...prev, ...data }));
-      setCurrentScreen('gameEnd');
-    });
-
-    newSocket.on('gameStopped', (message) => {
-      setError(message);
-      setCurrentScreen('login');
-    });
+    // Reset player state when connecting to new server
+    setPlayerId(null);
+    setPlayerName('');
+    setGameState(null);
+    setCurrentScreen('login');
   };
 
-  const handleStartGame = () => {
-    if (socket) {
-      socket.emit('startGame');
+  const handleStartGame = async () => {
+    if (playerId) {
+      try {
+        const response = await fetch(`${getApiUrl()}/api/start-game`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ playerId }),
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setGameState(prev => ({ ...prev, ...data.gameState }));
+        } else {
+          const errorData = await response.json();
+          setError(errorData.error || 'Failed to start game.');
+        }
+      } catch (error) {
+        console.error('Failed to start game:', error);
+        setError('Failed to start game. Please try again.');
+      }
     }
   };
 
@@ -145,7 +129,7 @@ function App() {
     setError('');
   };
 
-  if (!socket) {
+  if (!playerId && currentScreen !== 'login') {
     return <div className="loading">Connecting to server...</div>;
   }
 
@@ -170,13 +154,13 @@ function App() {
         <Lobby
           players={gameState?.players || []}
           onStartGame={handleStartGame}
-          isHost={gameState?.host === socket?.id}
+          isHost={gameState?.host === playerId}
         />
       );
     case 'game':
       return (
         <GameScreen
-          socket={socket}
+          playerId={playerId}
           playerName={playerName}
           gameState={gameState}
         />
