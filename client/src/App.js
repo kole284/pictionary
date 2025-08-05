@@ -18,9 +18,22 @@ function App() {
     if (serverUrl) {
       return serverUrl;
     }
-    return window.location.hostname === 'localhost' 
-      ? 'http://localhost:5000' 
-      : `http://${window.location.hostname}:5000`;
+    
+    // Check if we're on HTTPS (like Vercel)
+    const isHttps = window.location.protocol === 'https:';
+    const protocol = isHttps ? 'https:' : 'http:';
+    
+    if (window.location.hostname === 'localhost') {
+      return 'http://localhost:5000';
+    }
+    
+    // For Vercel deployment, use the same hostname but with HTTPS
+    if (isHttps) {
+      return `${protocol}//${window.location.hostname}`;
+    }
+    
+    // For local network, use HTTP
+    return `${protocol}//${window.location.hostname}:5000`;
   };
 
   useEffect(() => {

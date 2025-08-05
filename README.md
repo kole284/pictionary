@@ -85,6 +85,17 @@ Aplikacija automatski prepoznaje druge servere na istoj mreži i omogućava dire
 - ✅ **Bezbedno** (samo lokalna mreža)
 - ✅ **Spremno za deployment** na Vercel
 
+### 🌐 Online Multiplayer (Vercel)
+
+Aplikacija takođe podržava online multiplayer preko Vercel-a:
+
+**Prednosti online verzije:**
+- ✅ **Radi širom sveta** - nema potrebe za lokalnom mrežom
+- ✅ **Automatski HTTPS** - bezbedna konekcija
+- ✅ **Jednostavno deljenje** - samo pošalji link
+- ✅ **Automatsko prepoznavanje** - radi kao lokalna verzija
+- ✅ **Besplatno hosting** - na Vercel platformi
+
 ## 🎮 How to Play
 
 1. **Join the game**

@@ -45,6 +45,13 @@ const LANDiscovery = ({ onServerFound }) => {
   };
 
   const scanLocalNetwork = async () => {
+    // For Vercel deployment, we don't need to scan local network
+    // as all players will connect to the same Vercel instance
+    if (window.location.hostname !== 'localhost') {
+      console.log('Running on Vercel - no local network scanning needed');
+      return;
+    }
+    
     const commonPorts = [5000, 3000, 8080];
     const localIPs = getLocalIPRanges();
     
@@ -151,24 +158,31 @@ const LANDiscovery = ({ onServerFound }) => {
     scanLocalNetwork();
   };
 
+  // Check if we're on Vercel
+  const isVercel = window.location.hostname !== 'localhost';
+
   return (
     <div className="lan-discovery">
       <div className="discovery-header">
         <h3>🌐 LAN Discovery</h3>
         <div className="discovery-controls">
-          <button 
-            className={`btn ${isScanning ? 'btn-secondary' : 'btn-primary'}`}
-            onClick={isScanning ? stopDiscovery : startDiscovery}
-          >
-            {isScanning ? '🛑 Stop Scanning' : '🔍 Start Scanning'}
-          </button>
-          <button 
-            className="btn btn-secondary"
-            onClick={refreshScan}
-            disabled={!isScanning}
-          >
-            🔄 Refresh
-          </button>
+          {!isVercel && (
+            <>
+              <button 
+                className={`btn ${isScanning ? 'btn-secondary' : 'btn-primary'}`}
+                onClick={isScanning ? stopDiscovery : startDiscovery}
+              >
+                {isScanning ? '🛑 Stop Scanning' : '🔍 Start Scanning'}
+              </button>
+              <button 
+                className="btn btn-secondary"
+                onClick={refreshScan}
+                disabled={!isScanning}
+              >
+                🔄 Refresh
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -178,53 +192,71 @@ const LANDiscovery = ({ onServerFound }) => {
         </div>
       )}
 
-      {isScanning && (
-        <div className="scanning-status">
-          🔍 Scanning local network for Pictionary servers...
+      {isVercel ? (
+        <div className="vercel-info">
+          <div className="info-card">
+            <h4>🌐 Online Multiplayer</h4>
+            <p>You're playing on Vercel! All players automatically connect to the same server.</p>
+            <p>No LAN discovery needed - just share the game link with your friends!</p>
+            <div className="vercel-features">
+              <div className="feature">✅ Works worldwide</div>
+              <div className="feature">✅ No local network required</div>
+              <div className="feature">✅ Automatic HTTPS</div>
+              <div className="feature">✅ Share via link</div>
+            </div>
+          </div>
         </div>
-      )}
+      ) : (
+        <>
+          {isScanning && (
+            <div className="scanning-status">
+              🔍 Scanning local network for Pictionary servers...
+            </div>
+          )}
 
-      <div className="discovered-servers">
-        {discoveredServers.length === 0 ? (
-          <div className="no-servers">
-            {isScanning ? (
-              <p>🔍 Scanning for servers on your local network...</p>
+          <div className="discovered-servers">
+            {discoveredServers.length === 0 ? (
+              <div className="no-servers">
+                {isScanning ? (
+                  <p>🔍 Scanning for servers on your local network...</p>
+                ) : (
+                  <p>📡 No servers found. Start scanning to discover local games.</p>
+                )}
+              </div>
             ) : (
-              <p>📡 No servers found. Start scanning to discover local games.</p>
+              <>
+                <h4>🎮 Available Servers ({discoveredServers.length})</h4>
+                <div className="server-list">
+                  {discoveredServers.map(server => (
+                    <div key={server.id} className="server-item">
+                      <div className="server-info">
+                        <div className="server-name">{server.name}</div>
+                        <div className="server-address">{server.ip}:{server.port}</div>
+                        <div className="server-status">
+                          🟢 Online (last seen: {new Date(server.lastSeen).toLocaleTimeString()})
+                        </div>
+                      </div>
+                      <button 
+                        className="btn btn-primary"
+                        onClick={() => connectToServer(server)}
+                      >
+                        🎮 Join Game
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
           </div>
-        ) : (
-          <>
-            <h4>🎮 Available Servers ({discoveredServers.length})</h4>
-            <div className="server-list">
-              {discoveredServers.map(server => (
-                <div key={server.id} className="server-item">
-                  <div className="server-info">
-                    <div className="server-name">{server.name}</div>
-                    <div className="server-address">{server.ip}:{server.port}</div>
-                    <div className="server-status">
-                      🟢 Online (last seen: {new Date(server.lastSeen).toLocaleTimeString()})
-                    </div>
-                  </div>
-                  <button 
-                    className="btn btn-primary"
-                    onClick={() => connectToServer(server)}
-                  >
-                    🎮 Join Game
-                  </button>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-      </div>
 
-      <div className="discovery-info">
-        <p>
-          <strong>💡 How it works:</strong> This feature automatically scans your local network 
-          for other Pictionary servers. Make sure all devices are connected to the same WiFi network.
-        </p>
-      </div>
+          <div className="discovery-info">
+            <p>
+              <strong>💡 How it works:</strong> This feature automatically scans your local network 
+              for other Pictionary servers. Make sure all devices are connected to the same WiFi network.
+            </p>
+          </div>
+        </>
+      )}
     </div>
   );
 };
