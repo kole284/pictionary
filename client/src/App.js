@@ -15,6 +15,7 @@ function App() {
     const [isHost, setIsHost] = useState(false);
     const timerIntervalRef = useRef(null);
     const roundEndTimeoutRef = useRef(null);
+    const heartbeatIntervalRef = useRef(null);
 
     const words = ["jabuka", "sto", "kuća", "drvo", "lopta", "kompjuter", "telefon", "voda", "sunce"];
 
@@ -22,12 +23,6 @@ function App() {
         console.log('cleanupGame: Checking if game state needs cleanup...');
         const playersSnapshot = await get(dbRef(db, 'players'));
         const playersData = playersSnapshot.val();
-
-        const correctGuessSnapshot = await get(dbRef(db, 'game/correctGuess'));
-        if (correctGuessSnapshot.exists()) {
-            console.log('cleanupGame: Correct guess exists. Aborting cleanup.');
-            return;
-        }
 
         if (!playersData || Object.keys(playersData).length === 0) {
             console.log('cleanupGame: No players left. Deleting game state from database.');
@@ -53,6 +48,10 @@ function App() {
         if (roundEndTimeoutRef.current) {
             clearTimeout(roundEndTimeoutRef.current);
             roundEndTimeoutRef.current = null;
+        }
+        if (heartbeatIntervalRef.current) {
+            clearInterval(heartbeatIntervalRef.current);
+            heartbeatIntervalRef.current = null;
         }
         console.log('Client state has been reset to default.');
     };
@@ -152,57 +151,99 @@ function App() {
         };
     }, [isHost, gameState, nextRound]);
 
+    // Use a single useEffect for player-related actions and state
     useEffect(() => {
         if (!playerId) {
             console.log('useEffect [playerId]: No playerId, returning.');
             return;
         }
+    
         console.log(`useEffect [playerId]: Player ID is ${playerId}. Setting up listeners.`);
         const playerRef = dbRef(db, `players/${playerId}`);
-        onDisconnect(playerRef).remove();
+        
+        // Setup onDisconnect
+        onDisconnect(playerRef).remove().catch(err => {
+            console.error("Failed to set onDisconnect: ", err);
+        });
 
-        const unsub = onValue(dbRef(db, '/'), async (snapshot) => {
+        // Set up heartbeat
+        heartbeatIntervalRef.current = setInterval(() => {
+            set(dbRef(db, `players/${playerId}/heartbeat`), Date.now());
+        }, 2000);
+    
+        const unsub = onValue(dbRef(db, 'players'), (snapshot) => {
+            const playersData = snapshot.val();
+            if (!playersData) {
+                console.log('No players data received. Cleaning up game.');
+                cleanupGame();
+                return;
+            }
+            
+            const currentIsHost = playersData && playersData[Object.keys(playersData)[0]]?.playerId === playerId;
+            setIsHost(currentIsHost);
+    
+            if (currentIsHost) {
+                const now = Date.now();
+                const gameRef = dbRef(db, 'game');
+                
+                get(gameRef).then(gameSnapshot => {
+                    const gameData = gameSnapshot.val();
+                    if (!gameData?.correctGuess) {
+                        for (const id in playersData) {
+                            if (now - playersData[id].heartbeat > 15000) {
+                                console.log(`Player ${playersData[id].name} (${id}) is inactive. Removing.`);
+                                remove(dbRef(db, `players/${id}`));
+                            }
+                        }
+                    }
+                });
+            }
+        });
+    
+        return () => {
+            console.log('Cleanup for [playerId] useEffect. Player ID:', playerId);
+            if (heartbeatIntervalRef.current) {
+                clearInterval(heartbeatIntervalRef.current);
+            }
+            unsub();
+            onDisconnect(playerRef).cancel();
+            
+            get(dbRef(db, 'players')).then(snapshot => {
+                if (!snapshot.exists()) {
+                    cleanupGame();
+                }
+            });
+        };
+    }, [playerId, cleanupGame, nextRound]);
+    
+    // Use a separate useEffect for global game state listener
+    useEffect(() => {
+        const unsub = onValue(dbRef(db, '/'), (snapshot) => {
             const data = snapshot.val();
             console.log('Firebase data received:', data);
             
-            const currentIsHost = data?.gameState?.host === playerId;
-            setIsHost(currentIsHost);
-            setGameState(data);
-            
-            if (!data || !data.players || Object.keys(data.players).length === 0) {
+            if (!data || !data.players) {
                 console.log('No players or no data received. Resetting client state.');
                 resetClientState();
-                await cleanupGame();
                 return;
             }
-
-            if (currentIsHost) {
-                const now = Date.now();
-                
-                if (!data.game?.correctGuess) {
-                    for (const id in data.players) {
-                        if (now - data.players[id].heartbeat > 15000) {
-                            console.log(`Player ${data.players[id].name} (${id}) is inactive. Removing.`);
-                            await remove(dbRef(db, `players/${id}`));
-                        }
+            
+            setGameState(data);
+            
+            if (isHost && data.game?.correctGuess && !roundEndTimeoutRef.current) {
+                console.log('Host detected correct guess, scheduling next round in 5 seconds.');
+                roundEndTimeoutRef.current = setTimeout(() => {
+                    console.log('Timeout finished, calling nextRound.');
+                    nextRound();
+                    if (roundEndTimeoutRef.current) {
+                       clearTimeout(roundEndTimeoutRef.current);
+                       roundEndTimeoutRef.current = null;
                     }
-                }
-                
-                if (data.game?.correctGuess && !roundEndTimeoutRef.current) {
-                    console.log('Host detected correct guess, scheduling next round in 5 seconds.');
-                    roundEndTimeoutRef.current = setTimeout(() => {
-                        console.log('Timeout finished, calling nextRound.');
-                        nextRound();
-                        if (roundEndTimeoutRef.current) {
-                           clearTimeout(roundEndTimeoutRef.current);
-                           roundEndTimeoutRef.current = null;
-                        }
-                    }, 5000);
-                } else if (!data.game?.correctGuess && roundEndTimeoutRef.current) {
-                    console.log('Correct guess state cleared. Cancelling scheduled next round.');
-                    clearTimeout(roundEndTimeoutRef.current);
-                    roundEndTimeoutRef.current = null;
-                }
+                }, 5000);
+            } else if (isHost && !data.game?.correctGuess && roundEndTimeoutRef.current) {
+                console.log('Correct guess state cleared. Cancelling scheduled next round.');
+                clearTimeout(roundEndTimeoutRef.current);
+                roundEndTimeoutRef.current = null;
             }
 
             if (!data.gameState) {
@@ -217,26 +258,9 @@ function App() {
                 setCurrentScreen('login');
             }
         });
-
-        const sendHeartbeat = setInterval(() => {
-            set(dbRef(db, `players/${playerId}/heartbeat`), Date.now());
-        }, 2000);
-
-        return () => {
-            console.log('Cleanup for [playerId] useEffect. Player ID:', playerId);
-            clearInterval(sendHeartbeat);
-            unsub();
-            onDisconnect(playerRef).cancel();
-            if (roundEndTimeoutRef.current) {
-                clearTimeout(roundEndTimeoutRef.current);
-            }
-            get(dbRef(db, 'players')).then(snapshot => {
-                if (!snapshot.exists()) {
-                    cleanupGame();
-                }
-            });
-        };
-    }, [playerId, cleanupGame, resetClientState, nextRound]);
+        
+        return () => unsub();
+    }, [isHost, nextRound, resetClientState]);
 
     const handleLogin = async (name) => {
         if (name.trim()) {
