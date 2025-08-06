@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import LoginScreen from './components/LoginScreen';
 import Lobby from './components/Lobby';
 import GameScreen from './components/GameScreen';
@@ -13,15 +13,21 @@ function App() {
   const [currentScreen, setCurrentScreen] = useState('login');
   const [error, setError] = useState('');
   const [isHost, setIsHost] = useState(false);
-  const timerIntervalRef = useRef(null); // Koristimo useRef za čuvanje intervala
+  const timerIntervalRef = useRef(null);
 
   const words = ["jabuka", "sto", "kuća", "drvo", "lopta", "kompjuter", "telefon", "voda", "sunce"];
 
-  const nextRound = async () => {
+  // Koristimo useCallback da nextRound ne kreira novu instancu u svakom renderu
+  const nextRound = useCallback(async () => {
     if (!isHost) return;
 
     const playersSnapshot = await get(dbRef(db, 'players'));
     const playersData = playersSnapshot.val();
+    if (!playersData) {
+      // Nema igrača, kraj igre
+      await update(dbRef(db, 'gameState'), { gameStarted: false, inLobby: false });
+      return;
+    }
     const playerIds = Object.keys(playersData);
     const currentRound = (await get(dbRef(db, 'gameState/roundNumber'))).val() || 0;
     const currentDrawerId = (await get(dbRef(db, 'gameState/currentDrawer'))).val();
@@ -48,9 +54,8 @@ function App() {
 
     const roundDuration = 60;
     await set(dbRef(db, 'game/timeLeft'), roundDuration);
-  };
+  }, [isHost]);
   
-  // Hostova logika za odbrojavanje i prelazak na sledeću rundu
   useEffect(() => {
     if (isHost && currentScreen === 'game') {
       const timerRef = dbRef(db, 'game/timeLeft');
@@ -83,7 +88,7 @@ function App() {
         }
       };
     }
-  }, [isHost, currentScreen]);
+  }, [isHost, currentScreen, nextRound]);
 
   useEffect(() => {
     if (!playerId) {
@@ -93,13 +98,15 @@ function App() {
     const playerRef = dbRef(db, `players/${playerId}`);
     onDisconnect(playerRef).remove();
 
-    const unsub = onValue(dbRef(db, '/'), (snapshot) => {
+    const unsub = onValue(dbRef(db, '/'), async (snapshot) => {
       const data = snapshot.val();
       if (data) {
         setGameState(data);
         setIsHost(data.gameState?.host === playerId);
 
-        if (data.gameState?.gameStarted && !data.gameState?.inLobby) {
+        if (data.gameState && !data.gameState.inLobby && data.gameState.roundNumber > (Object.keys(data.players || {}).length)) {
+          setCurrentScreen('gameEnd');
+        } else if (data.gameState?.gameStarted && !data.gameState?.inLobby) {
           setCurrentScreen('game');
         } else if (data.gameState?.inLobby) {
           setCurrentScreen('lobby');
@@ -109,6 +116,10 @@ function App() {
       } else {
         setGameState(null);
         setCurrentScreen('login');
+        if (playerId) {
+          await remove(dbRef(db, 'gameState'));
+          await remove(dbRef(db, 'game'));
+        }
       }
     });
 
@@ -141,7 +152,7 @@ function App() {
         const playersData = playersSnapshot.val();
 
         if (!playersData || Object.keys(playersData).length === 1) {
-          await update(dbRef(db, 'gameState'), { host: newPlayerId, inLobby: true });
+          await update(dbRef(db, 'gameState'), { host: newPlayerId, inLobby: true, gameStarted: false });
         }
 
         setPlayerId(newPlayerId);
@@ -221,6 +232,7 @@ function App() {
           playerId={playerId}
           playerName={playerName}
           gameState={gameState}
+          nextRound={isHost ? nextRound : null}
         />
       );
     case 'gameEnd':
