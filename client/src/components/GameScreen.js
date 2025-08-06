@@ -6,7 +6,6 @@ import Timer from './Timer';
 import { db } from '../firebase';
 import { ref as dbRef, onValue, set, push, update, get } from 'firebase/database';
 
-// Dodat onGameEnd u props, kako bi se signaliziralo App.js-u da je igra gotova
 const GameScreen = memo(({ playerId, playerName, gameState, nextRound, gameId, onGameEnd }) => {
     const [currentWord, setCurrentWord] = useState('');
     const [messages, setMessages] = useState([]);
@@ -46,11 +45,7 @@ const GameScreen = memo(({ playerId, playerName, gameState, nextRound, gameId, o
             });
         }
         
-        // --- LOGIKA ZA KRAJ IGRE ---
-        // Provera da li je igra završena (npr. prošli su svi krugovi)
-        // Ako je trenutna runda veća od maksimalnog broja rundi, igra je gotova.
-        if (gameState.gameState.roundNumber > gameState.gameState.maxRounds) {
-            // Poziva funkciju iz App.js da prebaci na GameEndScreen
+        if (gameState.gameState.winner && onGameEnd) {
             onGameEnd();
         }
 
@@ -130,7 +125,7 @@ const GameScreen = memo(({ playerId, playerName, gameState, nextRound, gameId, o
     const isDrawing = gameState.gameState.currentDrawer === playerId;
 
     return (
-        <div className="game-screen-layout">
+       <div className="game-screen-layout">
             <div className="main-content">
                 <div className="game-info">
                     <h1 className="game-title">🎨 Pictionary</h1>

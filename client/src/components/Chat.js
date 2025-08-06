@@ -1,18 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { ref as dbRef, push, onChildAdded } from 'firebase/database';
 import { db } from '../firebase';
 
 const Chat = ({ messages, onSendMessage, isDrawing, correctGuess }) => {
   const [message, setMessage] = useState('');
+  // `messagesEndRef` ostaje, ali ga više ne koristimo za skrolovanje
   const messagesEndRef = useRef(null);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -60,6 +53,7 @@ const Chat = ({ messages, onSendMessage, isDrawing, correctGuess }) => {
             </div>
           </div>
         ))}
+        {/* `ref` ostaje, ali je sada neaktivan */}
         <div ref={messagesEndRef} />
       </div>
       
@@ -70,7 +64,7 @@ const Chat = ({ messages, onSendMessage, isDrawing, correctGuess }) => {
           placeholder={isDrawing ? "Ti crtaš!" : "Unesite svoju reč..."}
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          disabled={isDrawing || correctGuess !== null} // Onemogući chat nakon tačnog pogotka
+          disabled={isDrawing || correctGuess !== null}
           maxLength={50}
         />
         <button

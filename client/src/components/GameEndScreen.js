@@ -43,7 +43,6 @@ const GameEndScreen = ({ onPlayAgain, gameId }) => {
         <div className="container game-end-screen">
             <div className="game-info">
                 <h1 className="game-title">🏆 Kraj igre!</h1>
-                <p className="game-subtitle">Rezultati</p>
             </div>
 
             <div className="card" style={{ maxWidth: '600px', margin: '0 auto' }}>

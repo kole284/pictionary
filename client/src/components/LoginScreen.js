@@ -14,13 +14,13 @@ const LoginScreen = ({ onLogin, onServerFound }) => {
   };
 
   return (
-    <div className="container">
+    <div className="container login-container">
       <div className="game-info">
         <h1 className="game-title">🎨 Pictionary</h1>
         <p className="game-subtitle">Seminarski rad, napravili Lazar Sević 0002/2023 i Nikola Kostić 0464/2023</p>
       </div>
       
-      <div className="card" style={{ maxWidth: '400px', margin: '0 auto' }}>
+      <div className="card login-card">
         <h2 style={{ textAlign: 'center', marginBottom: '20px', color: '#333' }}>
           Unesite svoje ime
         </h2>
@@ -57,26 +57,17 @@ const LoginScreen = ({ onLogin, onServerFound }) => {
           </button>
         </form>
         
-        <div style={{ marginTop: '20px', textAlign: 'center', color: '#666' }}>
+        <div className="login-details">
           <p>🎯 Nacrtaj i pogodi reči u realnom vremenu!</p>
           <p>⏱️ Svaki krug traje 90 sekundi</p>
           <p>👥 Minimum 2 igrača potrebno</p>
         </div>
         
-        <div style={{ marginTop: '20px', textAlign: 'center' }}>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={() => setShowLANDiscovery(!showLANDiscovery)}
-            style={{ marginBottom: '10px' }}
-          >
-            {showLANDiscovery ? '🔽 Sakrij LAN Discovery' : '🌐 Pronađi lokalne igre'}
-          </button>
-        </div>
+       
       </div>
       
       {showLANDiscovery && (
-        <div className="card" style={{ maxWidth: '600px', margin: '20px auto' }}>
+        <div className="card lan-card">
           <LANDiscovery onServerFound={onServerFound} />
         </div>
       )}

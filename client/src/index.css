@@ -12,6 +12,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   min-height: 100vh;
+  overflow-x: hidden;
 }
 
 code {
@@ -23,6 +24,9 @@ code {
   max-width: 1200px;
   margin: 0 auto;
   padding: 20px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .btn {
@@ -79,11 +83,29 @@ code {
   margin: 10px 0;
 }
 
+/* Player List Styles */
 .player-list {
   background: white;
   border-radius: 15px;
   padding: 20px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+  flex-shrink: 0;
+  width: 100%;
+}
+.players-list-lobby{
+  background-color:white;
+  border-radius: 15px;
+  padding: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+
+
+}
+
+.player-list h3 {
+  color: #333;
+  margin-bottom: 15px;
+  font-size: 18px;
 }
 
 .player-item {
@@ -117,18 +139,25 @@ code {
   margin-left: 10px;
 }
 
+/* Chat Styles */
 .chat-container {
+  flex: 1;
   background: white;
   border-radius: 15px;
   padding: 20px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  height: 400px;
   display: flex;
   flex-direction: column;
 }
 
+.chat-container h3 {
+  color: #333;
+  margin-bottom: 15px;
+  font-size: 18px;
+}
+
 .chat-messages {
-  flex: 1;
+  flex: 1; /* Omogućava da se poruke rastegnu i skroluju */
   overflow-y: auto;
   margin-bottom: 15px;
   padding: 10px;
@@ -136,12 +165,14 @@ code {
   border-radius: 8px;
 }
 
+
 .message {
   margin-bottom: 8px;
   padding: 8px 12px;
   border-radius: 8px;
   background: white;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  word-wrap: break-word;
 }
 
 .message.correct {
@@ -172,18 +203,57 @@ code {
 .chat-input-container {
   display: flex;
   gap: 10px;
+  flex-shrink: 0;
 }
 
 .chat-input {
   flex: 1;
 }
 
-.canvas-container {
+/* Canvas Styles */
+
+.canvas-section {
+  flex: 1; /* Omogućava da se canvas rastegne i popuni sav vertikalni prostor */
+  display: flex;
+  flex-direction: column;
   background: white;
   border-radius: 15px;
   padding: 20px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
   text-align: center;
+}
+
+.canvas-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  flex-shrink: 0;
+}
+
+
+.drawing-word {
+  background: linear-gradient(45deg, #4CAF50, #45a049);
+  color: white;
+  padding: 10px 15px;
+  border-radius: 8px;
+  font-weight: bold;
+}
+
+.guessing-message {
+  background: #2196F3;
+  color: white;
+  padding: 10px 15px;
+  border-radius: 8px;
+  font-weight: bold;
+}
+
+.canvas-wrapper {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 0;
 }
 
 .canvas {
@@ -197,6 +267,8 @@ code {
   -ms-user-select: none;
   -webkit-touch-callout: none;
   -webkit-tap-highlight-color: transparent;
+  max-width: 100%;
+  height: auto;
 }
 
 .canvas-controls {
@@ -204,6 +276,9 @@ code {
   display: flex;
   justify-content: center;
   gap: 10px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  width: 100%;
 }
 
 .color-picker {
@@ -218,16 +293,32 @@ code {
   width: 100px;
 }
 
+.game-screen-layout {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  min-height: 100vh;
+  padding: 20px;
+  gap: 20px;
+}
+
+.main-content {
+  display: flex; /* Ključna izmena: Koristimo Flexbox za glavni sadržaj */
+  flex-direction: column;
+  flex: 1; /* Omogućava da se rastegne i zauzme sav prostor */
+  gap: 20px;
+}
+
 .game-info {
-  text-align: center;
-  margin-bottom: 20px;
+  text-align: left;
   color: white;
+  flex-shrink: 0; /* Ne dozvoljava da se smanji */
 }
 
 .game-title {
   font-size: 48px;
   font-weight: bold;
-  margin-bottom: 10px;
+  margin-bottom: 5px;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
 }
 
@@ -236,6 +327,16 @@ code {
   opacity: 0.9;
 }
 
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  width: 300px; /* Fiksna širina */
+  gap: 20px;
+  height: 100%;
+}
+
+
+/* Utility Styles */
 .loading {
   text-align: center;
   color: white;
@@ -261,32 +362,47 @@ code {
   text-align: center;
 }
 
-/* Lobby */
 .lobby {
-  max-width: 800px;
+  width: 100%;
   margin: 0 auto;
   padding: 20px;
-}
-
-.lobby-header {
-  text-align: center;
-  margin-bottom: 30px;
-}
-
-.lobby-header h1 {
-  color: #2c3e50;
-  margin-bottom: 10px;
-}
-
-.lobby-header p {
-  color: #7f8c8d;
-  font-size: 18px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center; 
+  gap: 10px;
 }
 
 .lobby-content {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 30px;
+  width: 100%;
+  max-width: 1200px;
+  min-height: calc(100vh - 100px);
+  align-items: flex-start;
+}
+
+.lobby-header {
+  width: 100%;
+  max-width: 1200px;
+  margin-bottom: 30px;
+  color: white;
+  text-align: left;
+}
+
+.lobby-header h1 {
+  color: white;
+  margin-bottom: 10px;
+  font-size: 36px;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+  width: fit-content;
+}
+
+.lobby-header p {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 18px;
+  width: fit-content;
 }
 
 .players-section h2 {
@@ -294,23 +410,6 @@ code {
   margin-bottom: 20px;
 }
 
-.players-list {
-  background: white;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.player-item {
-  display: flex;
-  align-items: center;
-  padding: 12px 0;
-  border-bottom: 1px solid #ecf0f1;
-}
-
-.player-item:last-child {
-  border-bottom: none;
-}
 
 .player-number {
   background: #3498db;
@@ -323,12 +422,6 @@ code {
   justify-content: center;
   font-weight: bold;
   margin-right: 15px;
-}
-
-.player-name {
-  flex: 1;
-  font-size: 16px;
-  font-weight: 500;
 }
 
 .host-badge {
@@ -344,6 +437,9 @@ code {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  height: auto;
+  /* Ključna izmena: Rasteže se da popuni prazan prostor */
+  flex-grow: 1;
 }
 
 .info-card {
@@ -388,18 +484,105 @@ code {
   font-weight: bold;
   cursor: pointer;
   transition: transform 0.2s;
+  width: 100%;
+  margin-top: auto;
 }
 
 .start-game-btn:hover {
   transform: translateY(-2px);
 }
 
+.start-game-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .waiting-message {
   text-align: center;
   padding: 20px;
-  background: #f8f9fa;
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 8px;
-  color: #6c757d;
+  color: white;
+}
+
+/* Login Screen */
+.login-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+}
+
+.login-form {
+  background: white;
+  padding: 40px;
+  border-radius: 15px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  max-width: 400px;
+  width: 100%;
+}
+.login-card {
+  width: 50%;
+}
+.login-details{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: justify;
+  padding: 10px;
+}
+
+/* Game End Screen */
+.game-end-screen {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  gap: 15px;
+
+}
+
+.game-end-content {
+  background: white;
+  padding: 40px;
+  border-radius: 15px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  max-width: 500px;
+  width: 100%;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .game-layout {
+    grid-template-columns: 1fr 250px;
+  }
+}
+
+@media (max-width: 968px) {
+  .game-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+  
+  .sidebar {
+    order: -1;
+    flex-direction: row;
+    gap: 20px;
+  }
+  
+  .player-list,
+  .chat-container {
+    flex: 1;
+    min-width: 0;
+  }
+  
+  .chat-container {
+    min-height: 300px;
+  }
 }
 
 @media (max-width: 768px) {
@@ -408,309 +591,151 @@ code {
   }
   
   .game-title {
-    font-size: 32px;
+    font-size: 72px;
   }
   
-  .canvas {
-    max-width: 100%;
+  .game-subtitle {
+    font-size: 16px;
+  }
+  
+  .lobby {
     height: auto;
   }
-  
   .lobby-content {
     grid-template-columns: 1fr;
+    gap: 20px;
   }
-  
-  .discovery-header {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .discovery-controls {
-    justify-content: center;
-  }
-  
-  .server-item {
-    flex-direction: column;
-    gap: 10px;
+  .lobby-header h1{
     text-align: center;
-  }
-}
-
-/* LAN Discovery Styles */
-.lan-discovery {
-  padding: 20px;
-}
-
-.discovery-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.discovery-header h3 {
-  margin: 0;
-  color: #333;
-}
-
-.discovery-controls {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.btn-secondary {
-  background: linear-gradient(45deg, #6c757d, #495057);
-}
-
-.btn-secondary:hover {
-  background: linear-gradient(45deg, #5a6268, #343a40);
-}
-
-.error-message {
-  background: #f8d7da;
-  color: #721c24;
-  padding: 10px;
-  border-radius: 8px;
-  margin-bottom: 15px;
-  border: 1px solid #f5c6cb;
-}
-
-.scanning-status {
-  background: #d1ecf1;
-  color: #0c5460;
-  padding: 10px;
-  border-radius: 8px;
-  margin-bottom: 15px;
-  border: 1px solid #bee5eb;
-  text-align: center;
-}
-
-.discovered-servers {
-  margin-top: 20px;
-}
-
-.discovered-servers h4 {
-  color: #333;
-  margin-bottom: 15px;
-}
-
-.no-servers {
-  text-align: center;
-  color: #666;
-  padding: 20px;
-  background: #f8f9fa;
-  border-radius: 8px;
-}
-
-.server-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.server-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 15px;
-  background: #f8f9fa;
-  border-radius: 8px;
-  border: 1px solid #e9ecef;
-  transition: all 0.3s ease;
-}
-
-.server-item:hover {
-  background: #e9ecef;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.server-info {
-  flex: 1;
-}
-
-.server-name {
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 5px;
-}
-
-.server-address {
-  font-family: monospace;
-  color: #666;
-  font-size: 14px;
-  margin-bottom: 5px;
-}
-
-.server-status {
-  font-size: 12px;
-  color: #28a745;
-}
-
-.discovery-info {
-  margin-top: 20px;
-  padding: 15px;
-  background: #e7f3ff;
-  border-radius: 8px;
-  border: 1px solid #b3d9ff;
-}
-
-.discovery-info p {
-  margin: 0;
-  color: #0056b3;
-  font-size: 14px;
-}
-
-.vercel-info {
-  margin-top: 20px;
-}
-
-.vercel-info .info-card {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border-radius: 12px;
-  padding: 20px;
-  text-align: center;
-}
-
-.vercel-info .info-card h4 {
-  margin: 0 0 15px 0;
-  font-size: 20px;
-  color: white;
-}
-
-.vercel-info .info-card p {
-  margin: 10px 0;
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 16px;
-}
-
-.vercel-features {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 10px;
-  margin-top: 20px;
-}
-
-.vercel-features .feature {
-  background: rgba(255, 255, 255, 0.1);
-  padding: 10px;
-  border-radius: 8px;
-  font-size: 14px;
-  color: white;
-} 
-/* ... Postojeći CSS ... */
-
-/* Novi layout za GameScreen */
-.game-screen-layout {
-  display: flex;
-  height: 100vh;
-  padding: 20px;
-  gap: 20px;
-}
-
-.main-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.sidebar {
-  width: 300px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.game-info {
-  text-align: center;
-  color: white;
-  margin-bottom: 20px;
-}
-
-.canvas-section {
-  flex: 1;
-  background: white;
-  border-radius: 15px;
-  padding: 20px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  display: flex;
-  flex-direction: column;
-}
-
-.canvas-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 15px;
-}
-
-.drawing-word {
-  background: linear-gradient(45deg, #4CAF50, #45a049);
-  color: white;
-  padding: 10px 15px;
-  border-radius: 8px;
-  font-weight: bold;
-}
-
-.guessing-message {
-  background: #2196F3;
-  color: white;
-  padding: 10px 15px;
-  border-radius: 8px;
-  font-weight: bold;
-}
-
-/* Prilagođavanje za PlayerList i Chat */
-.player-list {
-  background: white;
-  border-radius: 15px;
-  padding: 20px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  /* Osigurava da lista igrača zauzme fiksni deo, a ne da se širi */
-}
-
-.chat-container {
-  background: white;
-  border-radius: 15px;
-  padding: 20px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  flex: 1; /* Da zauzme preostali prostor u sidebar-u */
-  display: flex;
-  flex-direction: column;
-}
-
-/* Rešavanje skrolovanja za Chat poruke */
-.chat-messages {
-  flex: 1;
-  overflow-y: auto;
-  margin-bottom: 15px;
-  padding: 10px;
-  background: #f8f9fa;
-  border-radius: 8px;
-  /* Da bi se poruke skrolovale unutar kontejnera */
-}
-
-/* Media query za mobilne uređaje */
-@media (max-width: 768px) {
-  .game-screen-layout {
-    flex-direction: column;
-    height: auto;
-    overflow-y: auto;
+    width: auto;
   }
   
   .sidebar {
-    width: 100%;
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .game-layout {
+    gap: 15px;
+  }
+  
+  .canvas-controls {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  
+  .color-picker {
+    width: 35px;
+    height: 35px;
+  }
+  
+  .brush-size {
+    width: 80px;
   }
 
-  .canvas-section {
-    height: auto; /* Prilagodi visinu automatski */
+  .login-card{
+    width: 90%;
   }
+}
 
-  .chat-container {
-    height: 300px; /* Fiksna visina za chat na mobilnim */
+@media (max-width: 480px) {
+  .container {
+    padding: 5px;
+  }
+  
+  .game-title {
+    font-size: 24px;
+  }
+  
+  .game-subtitle {
+    font-size: 14px;
+  }
+  
+  .lobby-header h1 {
+    font-size: 24px;
+  }
+  
+  .card,
+  .player-list,
+  .chat-container,
+  .canvas-container {
+    padding: 15px;
+  }
+  
+  .btn {
+    padding: 10px 20px;
+    font-size: 14px;
+  }
+  
+  .input {
+    padding: 10px 14px;
+    font-size: 14px;
+  }
+  
+  .timer {
+    font-size: 20px;
+  }
+  
+  .canvas-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  
+  .drawing-word,
+  .guessing-message {
+    text-align: center;
+  }
+  
+  .player-item {
+    padding: 8px 0;
+  }
+  
+  .message {
+    padding: 6px 10px;
+  }
+  
+  .message-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+}
+
+/* Scrollbar Styling */
+.chat-messages::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-messages::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.chat-messages::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.chat-messages::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Prevent overscroll on mobile */
+body {
+  overscroll-behavior: none;
+}
+
+/* Fix for iOS Safari viewport */
+@supports (-webkit-touch-callout: none) {
+  .container {
+    min-height: -webkit-fill-available;
+  }
+}
+
+/* High DPI display optimization */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .canvas {
+    image-rendering: pixelated;
   }
 }

@@ -21,7 +21,6 @@ function App() {
 
     const words = ["jabuka", "sto", "kuća", "drvo", "lopta", "kompjuter", "telefon", "voda", "sunce"];
 
-    // Funkcija koja se poziva da se obriše igra ako nema igrača
     const cleanupGame = useCallback(async () => {
         if (!gameId) return;
         const playersSnapshot = await get(dbRef(db, `games/${gameId}/players`));
@@ -31,7 +30,6 @@ function App() {
         }
     }, [gameId]);
 
-    // Funkcija koja pokreće sledeću rundu
     const nextRound = useCallback(async () => {
         if (!isHost || !gameId) return;
         const playersSnapshot = await get(dbRef(db, `games/${gameId}/players`));
@@ -45,7 +43,6 @@ function App() {
         const currentRound = (await get(dbRef(db, `games/${gameId}/gameState/roundNumber`))).val() || 0;
         const maxRounds = (await get(dbRef(db, `games/${gameId}/gameState/maxRounds`))).val() || 0;
 
-        // Provera da li je igra gotova
         if (currentRound >= maxRounds) {
             const finalScores = Object.values(playersData).sort((a, b) => b.points - a.points);
             const winner = finalScores[0];
@@ -78,7 +75,6 @@ function App() {
         await set(dbRef(db, `games/${gameId}/game/timeLeft`), roundDuration);
     }, [isHost, words, cleanupGame, gameId]);
 
-    // Funkcija za resetovanje stanja klijenta i povratak na početni ekran
     const resetClientState = () => {
         setGameState(null);
         setPlayerId(null);
@@ -92,7 +88,6 @@ function App() {
         if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
     };
 
-    // Funkcija za prijavu i kreiranje/pridruživanje igri
     const handleLogin = async (name, gameIdToJoin) => {
         if (!name.trim()) return;
         try {
@@ -149,7 +144,6 @@ function App() {
         }
     };
     
-    // Funkcija za početak igre (samo za hosta)
     const handleStartGame = async () => {
         if (isHost && gameState?.players) {
             try {
@@ -165,7 +159,7 @@ function App() {
                     inLobby: false,
                     currentDrawer: playerIds[0],
                     roundNumber: 1,
-                    maxRounds: playerIds.length * 2, // Svaki igrač crta po 2 puta
+                    maxRounds: playerIds.length * 2,
                 });
                 await set(dbRef(db, `games/${gameId}/game/drawingWords`), { [playerIds[0]]: firstWord });
                 await set(dbRef(db, `games/${gameId}/game/timeLeft`), roundDuration);
@@ -178,7 +172,6 @@ function App() {
         }
     };
 
-    // Funkcija za ponovni ulazak u igru (nakon završetka)
     const handlePlayAgain = async () => {
         if (playerId) {
             await remove(dbRef(db, `games/${gameId}/players/${playerId}`));
@@ -187,7 +180,6 @@ function App() {
         resetClientState();
     };
 
-    // Učitavanje stanja igre iz baze
     useEffect(() => {
         if (!gameId) {
             resetClientState();
@@ -198,7 +190,7 @@ function App() {
             if (data) {
                 setGameState(data);
             } else {
-                resetClientState(); // Igra je izbrisana iz baze
+                resetClientState();
             }
         });
         return () => {
@@ -206,7 +198,6 @@ function App() {
         };
     }, [gameId]);
 
-    // Logika za promenu ekrana i tajmer
     useEffect(() => {
         if (!gameState) {
             if (!isLoginPhaseRef.current) {
@@ -215,27 +206,24 @@ function App() {
             return;
         }
 
-        // Postavi da li je igrač host
         const currentIsHost = gameState?.gameState?.host === playerId;
         setIsHost(currentIsHost);
 
-        // Prebacivanje ekrana na osnovu stanja igre
-        if (gameState.gameState?.inLobby) {
-            setCurrentScreen('lobby');
-        } else if (gameState.gameState?.gameStarted && gameState.gameState.winner) {
+        // ISPRAVLJENA LOGIKA ZA KRAJ IGRE
+        if (gameState.gameState?.winner) {
             setCurrentScreen('gameEnd');
+        } else if (gameState.gameState?.inLobby) {
+            setCurrentScreen('lobby');
         } else if (gameState.gameState?.gameStarted) {
             setCurrentScreen('game');
         } else if (!isLoginPhaseRef.current) {
             setCurrentScreen('login');
         }
         
-        // Logika za tajmer i prelazak na sledeću rundu
         if (isHost && gameState?.gameState?.gameStarted && gameState?.game?.timeLeft === 0) {
             nextRound();
         }
 
-        // Logika za automatski prelazak kada se pogodi reč
         if (isHost && gameState?.game?.correctGuess && !roundEndTimeoutRef.current) {
             roundEndTimeoutRef.current = setTimeout(() => {
                 nextRound();
@@ -248,7 +236,6 @@ function App() {
         }
     }, [gameState, playerId, isHost, nextRound]);
 
-    // Logika za "heartbeat" i uklanjanje igrača pri prekidu veze
     useEffect(() => {
         if (!playerId || !gameId) return;
         const playerRef = dbRef(db, `games/${gameId}/players/${playerId}`);
@@ -267,7 +254,6 @@ function App() {
         };
     }, [playerId, gameId]);
     
-    // Logika za tajmer
     useEffect(() => {
         if (!isHost || !gameId || !gameState?.gameState?.gameStarted || gameState.gameState.winner) return;
 
@@ -285,7 +271,6 @@ function App() {
             } else if (currentLeft === 0) {
                 clearInterval(timerIntervalRef.current);
                 timerIntervalRef.current = null;
-                // nextRound() se poziva u prethodnom useEffect-u, kada timeLeft padne na 0
             }
         }, 1000);
 
@@ -307,7 +292,6 @@ function App() {
         );
     }
     
-    // Uslovno renderovanje komponenti
     switch (currentScreen) {
         case 'login':
             return <LoginScreen onLogin={handleLogin} />;
@@ -330,15 +314,17 @@ function App() {
                     gameState={gameState}
                     nextRound={isHost ? nextRound : null}
                     gameId={gameId}
+                    onGameEnd={() => setCurrentScreen('gameEnd')}
                 />
             );
-        case 'gameEnd':
+       case 'gameEnd':
             return (
                 <GameEndScreen
-                    gameState={gameState}
+                    gameState={gameState} // DODATO: Prosleđujemo celo stanje igre
                     onPlayAgain={handlePlayAgain}
+                    gameId={gameId} // Dodato i gameId
                 />
-            );
+    );
         default:
             return <LoginScreen onLogin={handleLogin} />;
     }

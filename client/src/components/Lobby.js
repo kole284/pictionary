@@ -8,15 +8,17 @@ const Lobby = ({ players, onStartGame, isHost, gameId }) => {
 
   return (
     <div className="lobby">
-      <div className="lobby-header">
-        <h1>🎨 Pictionary Lobby</h1>
-        <p>Čekaju se igrači da se prijave...</p>
-      </div>
+   
 
-      <div className="lobby-content">
-        <div className="players-section">
+      <div className="lobby-content">   
+      
+        <div className="players-section">  
+          <div className="lobby-header">
+            <h1>🎨 Pictionary Lobby</h1>
+            <p>Čekaju se igrači da se prijave...</p>
+          </div>
           <h2>Igrači ({playersCount}/{minPlayers})</h2>
-          <div className="players-list">
+          <div className="players-list-lobby">
             {players && players.map((player, index) => (
               <div key={player.playerId} className="player-item">
                 <span className="player-number">{index + 1}</span>
