@@ -1,4 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import LoginScreen from './components/LoginScreen';
+import Lobby from './components/Lobby';
+import GameScreen from './components/GameScreen';
+import GameEndScreen from './components/GameEndScreen';
+import { db } from './firebase';
+import { ref as dbRef, set, push, update, remove, onValue } from 'firebase/database';
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
 import { getDatabase } from "firebase/database";
@@ -22,12 +28,6 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
-import LoginScreen from './components/LoginScreen';
-import Lobby from './components/Lobby';
-import GameScreen from './components/GameScreen';
-import GameEndScreen from './components/GameEndScreen';
-import { db } from './firebase';
-import { ref as dbRef, set, push, update, remove, onValue } from 'firebase/database';
 
 function App() {
   const [playerId, setPlayerId] = useState(null);
