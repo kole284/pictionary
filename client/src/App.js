@@ -31,13 +31,39 @@ function App() {
     }
   }, []);
 
+  // Nova funkcija za resetovanje stanja klijenta
+  const resetClientState = () => {
+    setGameState(null);
+    setPlayerId(null);
+    setPlayerName('');
+    setCurrentScreen('login');
+    setError('');
+    setIsHost(false);
+    if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+    }
+    console.log('Client state has been reset to default.');
+  };
+  
+  // Novi useEffect za proveru i čišćenje na početku
+  useEffect(() => {
+    // Ova funkcija se izvršava samo jednom pri prvom učitavanju komponente
+    const initialCleanup = async () => {
+      console.log('Initial check: Cleaning up old game state if necessary.');
+      await cleanupGame();
+    };
+    initialCleanup();
+  }, [cleanupGame]);
+
+
   const nextRound = useCallback(async () => {
     if (!isHost) return;
 
     const playersSnapshot = await get(dbRef(db, 'players'));
     const playersData = playersSnapshot.val();
     if (!playersData) {
-      await cleanupGame(); 
+      await cleanupGame();
       return;
     }
     const playerIds = Object.keys(playersData);
@@ -84,10 +110,7 @@ function App() {
       
       if (!data) {
         console.log('No data received from Firebase. Game state is probably deleted. Resetting client state.');
-        setGameState(null);
-        setPlayerId(null);
-        setPlayerName('');
-        setCurrentScreen('login');
+        resetClientState();
         return;
       }
       
@@ -123,7 +146,7 @@ function App() {
       onDisconnect(playerRef).cancel();
       cleanupGame();
     };
-  }, [playerId, cleanupGame]);
+  }, [playerId, cleanupGame, resetClientState]);
 
   const handleLogin = async (name) => {
     if (name.trim()) {
@@ -195,7 +218,7 @@ function App() {
     setCurrentScreen('login');
     setGameState(null);
     setError('');
-    await cleanupGame(); 
+    await cleanupGame();
   };
 
   if (error) {
