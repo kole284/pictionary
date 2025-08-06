@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import DrawingCanvas from './DrawingCanvas';
 import Chat from './Chat';
 import PlayerList from './PlayerList';
@@ -6,7 +6,7 @@ import Timer from './Timer';
 import { db } from '../firebase';
 import { ref as dbRef, onValue, set, push, update, get } from 'firebase/database';
 
-const GameScreen = ({ playerId, playerName, gameState, nextRound }) => {
+const GameScreen = memo(({ playerId, playerName, gameState, nextRound }) => {
     const [currentWord, setCurrentWord] = useState('');
     const [messages, setMessages] = useState([]);
     const [drawingHistory, setDrawingHistory] = useState([]);
@@ -192,6 +192,6 @@ const GameScreen = ({ playerId, playerName, gameState, nextRound }) => {
             </div>
         </div>
     );
-};
+});
 
 export default GameScreen;

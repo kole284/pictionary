@@ -23,7 +23,6 @@ function App() {
         const playersSnapshot = await get(dbRef(db, 'players'));
         const playersData = playersSnapshot.val();
 
-        // Dodajemo provjeru da li je pogođena reč, da ne bi prerano obrisali igru.
         const correctGuessSnapshot = await get(dbRef(db, 'game/correctGuess'));
         if (correctGuessSnapshot.exists()) {
             console.log('cleanupGame: Correct guess exists. Aborting cleanup.');
@@ -69,7 +68,6 @@ function App() {
     const nextRound = useCallback(async () => {
         if (!isHost) return;
         
-        // Dodajemo provjeru da li je stanje igre i dalje validno pre nego što nastavimo
         const currentGameStateSnapshot = await get(dbRef(db, 'gameState'));
         if (!currentGameStateSnapshot.exists()) {
             console.log('nextRound: Game state no longer exists. Aborting.');
@@ -90,7 +88,6 @@ function App() {
         
         if (currentRound >= playerIds.length) {
             console.log('nextRound: Max rounds reached. Game Over!');
-            // Logika za završetak igre i postavljanje pobednika
             const finalScores = Object.values(playersData).sort((a, b) => b.points - a.points);
             const winner = finalScores[0];
 
@@ -98,7 +95,7 @@ function App() {
                 gameStarted: false,
                 inLobby: false,
                 currentDrawer: null,
-                roundNumber: currentRound + 1, // Set to a value that triggers game end
+                roundNumber: currentRound + 1,
                 winner: { name: winner.name, score: winner.points },
                 finalScores: finalScores,
             });
@@ -182,7 +179,6 @@ function App() {
             if (currentIsHost) {
                 const now = Date.now();
                 
-                // Dodajemo provjeru da ne brišemo igrače ako je runda u toku i reč je pogođena
                 if (!data.game?.correctGuess) {
                     for (const id in data.players) {
                         if (now - data.players[id].heartbeat > 15000) {
@@ -192,7 +188,6 @@ function App() {
                     }
                 }
                 
-                // Host only logic for handling correct guess and triggering next round
                 if (data.game?.correctGuess && !roundEndTimeoutRef.current) {
                     console.log('Host detected correct guess, scheduling next round in 5 seconds.');
                     roundEndTimeoutRef.current = setTimeout(() => {
