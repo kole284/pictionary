@@ -109,31 +109,33 @@ function App() {
     }, [isHost, gameState, nextRound]);
 
 
-    useEffect(() => {
-        if (!playerId) {
-            console.log('useEffect [playerId]: No playerId, returning.');
+useEffect(() => {
+    if (!playerId) {
+        console.log('useEffect [playerId]: No playerId, returning.');
+        return;
+    }
+    console.log(`useEffect [playerId]: Player ID is ${playerId}. Setting up listeners.`);
+    const playerRef = dbRef(db, `players/${playerId}`);
+    onDisconnect(playerRef).remove();
+
+    const unsub = onValue(dbRef(db, '/'), async (snapshot) => {
+        const data = snapshot.val();
+        console.log('Firebase data received:', data);
+        
+        setGameState(data);
+        
+        if (!data || !data.players || Object.keys(data.players).length === 0) {
+            console.log('No players or no data received. Resetting client state.');
+            resetClientState();
+            await cleanupGame();
             return;
         }
-        console.log(`useEffect [playerId]: Player ID is ${playerId}. Setting up listeners.`);
-        const playerRef = dbRef(db, `players/${playerId}`);
-        onDisconnect(playerRef).remove();
 
-        const unsub = onValue(dbRef(db, '/'), async (snapshot) => {
-            const data = snapshot.val();
-            console.log('Firebase data received:', data);
-            
-            if (!data || !data.players || Object.keys(data.players).length === 0) {
-                console.log('No players or no data received. Resetting client state.');
-                resetClientState();
-                await cleanupGame();
-                return;
-            }
-            
-            setGameState(data);
-            setIsHost(data.gameState?.host === playerId);
-            const players = data.players || {};
-            const numPlayers = Object.keys(players).length;
+        setIsHost(data.gameState?.host === playerId);
+        const players = data.players || {};
+        const numPlayers = Object.keys(players).length;
 
+        if (isHost) {
             const now = Date.now();
             for (const id in players) {
                 if (now - players[id].heartbeat > 10000) {
@@ -141,43 +143,44 @@ function App() {
                     await remove(dbRef(db, `players/${id}`));
                 }
             }
-            
-            if (numPlayers > 0 && !data.gameState) {
-                console.log('Found players but no game state. Creating a new lobby state.');
-                await set(dbRef(db, 'gameState'), { host: playerId, inLobby: true, gameStarted: false, roundNumber: 0, maxRounds: 0 });
-                setCurrentScreen('lobby');
-                return;
-            }
-            
-            if (data.gameState?.gameStarted && data.gameState?.roundNumber > (data.gameState?.maxRounds || numPlayers)) {
-                console.log('Detected game end conditions, switching to game end screen.');
-                setCurrentScreen('gameEnd');
-            } else if (data.gameState?.gameStarted && !data.gameState?.inLobby) {
-                console.log('Game has started, switching to game screen.');
-                setCurrentScreen('game');
-            } else if (data.gameState?.inLobby) {
-                console.log('In lobby, switching to lobby screen.');
-                setCurrentScreen('lobby');
-            } else {
-                console.log('Defaulting to login screen because no game state is active.');
-                setCurrentScreen('login');
+        }
+
+        if (!data.gameState) {
+            console.log('No game state found. Switching to login screen.');
+            setCurrentScreen('login');
+        } else if (data.gameState.inLobby) {
+            console.log('In lobby, switching to lobby screen.');
+            setCurrentScreen('lobby');
+        } else if (data.gameState.gameStarted && data.gameState.roundNumber > (data.gameState.maxRounds || numPlayers)) {
+            console.log('Detected game end conditions, switching to game end screen.');
+            setCurrentScreen('gameEnd');
+        } else if (data.gameState.gameStarted && !data.gameState.inLobby) {
+            console.log('Game has started, switching to game screen.');
+            setCurrentScreen('game');
+        } else {
+            console.log('Fallback to login screen because no active game state is found.');
+            setCurrentScreen('login');
+        }
+    });
+
+    const sendHeartbeat = setInterval(() => {
+        set(dbRef(db, `players/${playerId}/heartbeat`), Date.now());
+    }, 2000);
+
+    return () => {
+        console.log('Cleanup for [playerId] useEffect. Player ID:', playerId);
+        clearInterval(sendHeartbeat);
+        unsub();
+        onDisconnect(playerRef).cancel();
+        get(dbRef(db, 'players')).then(snapshot => {
+            if (!snapshot.exists()) {
+                cleanupGame();
             }
         });
+    };
+}, [playerId, cleanupGame, resetClientState, nextRound, isHost]); // Dodaj isHost kao zavisnost
 
-        const sendHeartbeat = setInterval(() => {
-            set(dbRef(db, `players/${playerId}/heartbeat`), Date.now());
-        }, 2000);
-
-        return () => {
-            console.log('Cleanup for [playerId] useEffect. Player ID:', playerId);
-            clearInterval(sendHeartbeat);
-            unsub();
-            onDisconnect(playerRef).cancel();
-            cleanupGame();
-        };
-    }, [playerId, cleanupGame, resetClientState, nextRound]);
-
-    const handleLogin = async (name) => {
+       const handleLogin = async (name) => {
         if (name.trim()) {
             try {
                 const playersRef = dbRef(db, 'players');

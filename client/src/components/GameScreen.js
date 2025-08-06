@@ -11,6 +11,12 @@ const GameScreen = ({ playerId, playerName, gameState, nextRound }) => {
     const [messages, setMessages] = useState([]);
     const [drawingHistory, setDrawingHistory] = useState([]);
     const [correctGuess, setCorrectGuess] = useState(null);
+    const timeLeft = gameState?.game?.timeLeft ?? 0; // Koristi nullish coalescing operator
+
+    if (!gameState || !gameState.gameState || !gameState.players) {
+        console.log('GameScreen: Loading state...');
+        return <div className="loading">Učitavanje igre...</div>;
+    }
 
     useEffect(() => {
         console.log('GameScreen useEffect running.');
@@ -153,7 +159,7 @@ const GameScreen = ({ playerId, playerName, gameState, nextRound }) => {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '20px' }}>
                 <div>
                     <div className="canvas-container">
-                        <Timer timeLeft={gameState.game?.timeLeft} />
+                        <Timer timeLeft={timeLeft} />
                         
                         {isDrawing && currentWord && (
                             <div style={{ background: 'linear-gradient(45deg, #4CAF50, #45a049)', color: 'white', padding: '10px', borderRadius: '8px', marginBottom: '15px', textAlign: 'center', fontWeight: 'bold' }}>
