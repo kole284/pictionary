@@ -7,19 +7,22 @@ import { db } from '../firebase';
 import { ref as dbRef, onValue, set, push, update, get } from 'firebase/database';
 
 const GameScreen = ({ playerId, playerName, gameState, nextRound }) => {
+    // Svi hook-ovi moraju biti na početku komponente, pre bilo kakvog return-a
     const [currentWord, setCurrentWord] = useState('');
     const [messages, setMessages] = useState([]);
     const [drawingHistory, setDrawingHistory] = useState([]);
     const [correctGuess, setCorrectGuess] = useState(null);
-    const timeLeft = gameState?.game?.timeLeft ?? 0; // Koristi nullish coalescing operator
 
-    if (!gameState || !gameState.gameState || !gameState.players) {
-        console.log('GameScreen: Loading state...');
-        return <div className="loading">Učitavanje igre...</div>;
-    }
-
+    // useEffect se mora pozvati uvek
     useEffect(() => {
         console.log('GameScreen useEffect running.');
+
+        // Ograničavamo izvršavanje logike unutar hook-a
+        if (!gameState || !gameState.gameState || !gameState.players) {
+            console.log('useEffect: Game state not yet available. Skipping setup.');
+            return;
+        }
+
         const drawingRef = dbRef(db, 'game/drawingHistory');
         const chatRef = dbRef(db, 'game/chatMessages');
         const correctGuessRef = dbRef(db, 'game/correctGuess');
@@ -139,10 +142,14 @@ const GameScreen = ({ playerId, playerName, gameState, nextRound }) => {
         }
     };
 
+    // Sada je ova provera sigurna jer se izvršava nakon svih hook-ova
     if (!gameState || !gameState.gameState || !gameState.players) {
         console.log('GameScreen: Loading state...');
         return <div className="loading">Učitavanje igre...</div>;
     }
+    
+    // Ostali kod ostaje isti
+    const timeLeft = gameState?.game?.timeLeft ?? 0;
     console.log(`GameScreen: Render with gameState.gameStarted=${gameState.gameState.gameStarted}, gameState.inLobby=${gameState.gameState.inLobby}`);
 
     const isDrawing = gameState.gameState.currentDrawer === playerId;
