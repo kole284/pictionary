@@ -4,7 +4,7 @@ import Lobby from './components/Lobby';
 import GameScreen from './components/GameScreen';
 import GameEndScreen from './components/GameEndScreen';
 import { db } from './firebase';
-import { ref as dbRef, set, push, onValue, onChildAdded, update, remove } from 'firebase/database';
+import { ref as dbRef, set, push, update, remove, onValue } from 'firebase/database';
 
 function App() {
   const [playerId, setPlayerId] = useState(null);
@@ -14,29 +14,6 @@ function App() {
   const [error, setError] = useState('');
   const [serverUrl, setServerUrl] = useState(null);
 
-  // Automatically detect server URL for API calls
-  const getApiUrl = () => {
-    if (serverUrl) {
-      return serverUrl;
-    }
-    
-    // Check if we're on HTTPS (like Vercel)
-    const isHttps = window.location.protocol === 'https:';
-    const protocol = isHttps ? 'https:' : 'http:';
-    
-    if (window.location.hostname === 'localhost') {
-      return 'http://localhost:5000';
-    }
-    
-    // For Vercel deployment, use the same hostname but with HTTPS
-    if (isHttps) {
-      return `${protocol}//${window.location.hostname}`;
-    }
-    
-    // For local network, use HTTP
-    return `${protocol}//${window.location.hostname}:5000`;
-  };
-
   // Poll game state and send heartbeat every 2 seconds
   useEffect(() => {
     if (!playerId) return;
@@ -44,18 +21,11 @@ function App() {
     const pollGameState = async () => {
       try {
         // Send heartbeat
-        await fetch(`${getApiUrl()}/api/heartbeat`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ playerId }),
-        });
+        await set(dbRef(db, `players/${playerId}/heartbeat`), Date.now());
         
         // Get game state
-        const response = await fetch(`${getApiUrl()}/api/game-state`);
-        if (response.ok) {
-          const state = await response.json();
+        onValue(dbRef(db, 'gameState'), (snapshot) => {
+          const state = snapshot.val();
           setGameState(state);
           
           if (state.gameStarted && !state.inLobby) {
@@ -63,7 +33,7 @@ function App() {
           } else if (state.inLobby) {
             setCurrentScreen('lobby');
           }
-        }
+        });
       } catch (error) {
         console.error('Failed to fetch game state:', error);
         setError('Failed to connect to server. Please refresh the page.');
@@ -80,12 +50,7 @@ function App() {
     
     const cleanup = async () => {
       try {
-        await fetch(`${getApiUrl()}/api/cleanup`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
+        await set(dbRef(db, `players/${playerId}/heartbeat`), Date.now());
       } catch (error) {
         console.error('Failed to cleanup:', error);
       }
@@ -100,13 +65,7 @@ function App() {
     return () => {
       if (playerId) {
         // Send leave game request when component unmounts
-        fetch(`${getApiUrl()}/api/leave-game`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ playerId }),
-        }).catch(console.error);
+        remove(dbRef(db, `players/${playerId}`));
       }
     };
   }, [playerId]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -114,23 +73,13 @@ function App() {
   const handleLogin = async (name) => {
     if (name.trim()) {
       try {
-        const response = await fetch(`${getApiUrl()}/api/join-game`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ playerName: name }),
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          setPlayerId(data.playerId);
-          setPlayerName(name);
-          setGameState(data.gameState);
-          setCurrentScreen('loading');
-        } else {
-          setError('Failed to join game. Please try again.');
-        }
+        const newPlayerRef = push(dbRef(db, 'players'));
+        const playerId = newPlayerRef.key;
+        set(newPlayerRef, { name: name, playerId: playerId });
+        setPlayerId(playerId);
+        setPlayerName(name);
+        setGameState(null); // Game state will be fetched on heartbeat
+        setCurrentScreen('loading');
       } catch (error) {
         console.error('Failed to join game:', error);
         setError('Failed to connect to server. Please try again.');
@@ -150,21 +99,7 @@ function App() {
   const handleStartGame = async () => {
     if (playerId) {
       try {
-        const response = await fetch(`${getApiUrl()}/api/start-game`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ playerId }),
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          setGameState(prev => ({ ...prev, ...data.gameState }));
-        } else {
-          const errorData = await response.json();
-          setError(errorData.error || 'Failed to start game.');
-        }
+        await update(dbRef(db, 'gameState'), { gameStarted: true });
       } catch (error) {
         console.error('Failed to start game:', error);
         setError('Failed to start game. Please try again.');
@@ -176,13 +111,7 @@ function App() {
     // Leave current game
     if (playerId) {
       try {
-        await fetch(`${getApiUrl()}/api/leave-game`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ playerId }),
-        });
+        await remove(dbRef(db, `players/${playerId}`));
       } catch (error) {
         console.error('Failed to leave game:', error);
       }
