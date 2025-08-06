@@ -4,8 +4,7 @@ import Lobby from './components/Lobby';
 import GameScreen from './components/GameScreen';
 import GameEndScreen from './components/GameEndScreen';
 import { db } from './firebase';
-import { ref as dbRef, set, push, update, remove, onValue, onDisconnect } from 'firebase/database';
-
+import { ref as dbRef, set, push, update, remove, onValue, onDisconnect, get } from 'firebase/database';
 
 function App() {
   const [playerId, setPlayerId] = useState(null);
@@ -13,91 +12,70 @@ function App() {
   const [gameState, setGameState] = useState(null);
   const [currentScreen, setCurrentScreen] = useState('login');
   const [error, setError] = useState('');
-  const [serverUrl, setServerUrl] = useState(null);
+  const [isHost, setIsHost] = useState(false);
 
-  // Glavni useEffect za praćenje stanja igre i slanje "heartbeata"
   useEffect(() => {
     if (!playerId) {
       console.log('useEffect - No playerId, skipping listener setup.');
       return;
     }
-    
-    console.log(`useEffect - PlayerId: ${playerId} is active. Setting up listeners.`);
 
-    // OnValue slušač koji prati celo stanje baze
+    const playerRef = dbRef(db, `players/${playerId}`);
+    onDisconnect(playerRef).remove();
+
     const unsub = onValue(dbRef(db, '/'), (snapshot) => {
       const data = snapshot.val();
-      console.log('Received new state from root:', data);
-      
       if (data) {
-          setGameState(data);
+        setGameState(data);
+        setIsHost(data.gameState?.host === playerId);
 
-          if (data.gameState?.gameStarted && !data.gameState?.inLobby) {
-            console.log('GameState indicates game has started. Changing screen to game.');
-            setCurrentScreen('game');
-          } else if (data.gameState?.inLobby) {
-            console.log('GameState indicates game is in lobby. Changing screen to lobby.');
-            setCurrentScreen('lobby');
-          } else {
-            setCurrentScreen('login');
-          }
-      } else {
-          setGameState(null);
+        if (data.gameState?.gameStarted && !data.gameState?.inLobby) {
+          setCurrentScreen('game');
+        } else if (data.gameState?.inLobby) {
+          setCurrentScreen('lobby');
+        } else {
           setCurrentScreen('login');
+        }
+      } else {
+        setGameState(null);
+        setCurrentScreen('login');
       }
     });
 
-    // Postavljanje onDisconnect akcije za brisanje igrača
-    const playerRef = dbRef(db, `players/${playerId}`);
-    onDisconnect(playerRef).remove();
-    console.log(`onDisconnect hook set up for player: ${playerId}`);
-
-    // Interval za slanje heartbeata
     const sendHeartbeat = setInterval(() => {
       set(dbRef(db, `players/${playerId}/heartbeat`), Date.now());
-      console.log(`Heartbeat sent for player: ${playerId}`);
     }, 2000);
-    
+
     return () => {
-      console.log(`Clearing listeners and intervals for player: ${playerId}`);
       clearInterval(sendHeartbeat);
       unsub();
-      // Otkazivanje onDisconnect akcije pri isključivanju komponente
       onDisconnect(playerRef).cancel();
     };
-  }, [playerId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [playerId]);
 
   const handleLogin = async (name) => {
-    console.log(`Attempting to log in with name: ${name}`);
     if (name.trim()) {
       try {
         const playersRef = dbRef(db, 'players');
         const newPlayerRef = push(playersRef);
         const newPlayerId = newPlayerRef.key;
 
-        // Kreiranje objekta za novog igrača
-        const newPlayer = {
-            name: name, 
-            playerId: newPlayerId, 
-            points: 0, 
-            heartbeat: Date.now() 
-        };
+        await set(newPlayerRef, {
+          name: name,
+          playerId: newPlayerId,
+          points: 0,
+          heartbeat: Date.now(),
+        });
 
-        // Postavljanje novog igrača u bazu
-        await set(newPlayerRef, newPlayer);
+        const playersSnapshot = await get(playersRef);
+        const playersData = playersSnapshot.val();
 
-        // Provera da li je ovo prvi igrač, i ako jeste, postavi ga za hosta
-        onValue(playersRef, (snapshot) => {
-          const playersData = snapshot.val();
-          if (!playersData || Object.keys(playersData).length === 1) {
-            // Prvi igrač je host
-            update(dbRef(db, 'gameState'), { host: newPlayerId, inLobby: true });
-          }
-        }, { onlyOnce: true });
+        if (!playersData || Object.keys(playersData).length === 1) {
+          await update(dbRef(db, 'gameState'), { host: newPlayerId, inLobby: true });
+        }
 
         setPlayerId(newPlayerId);
         setPlayerName(name);
-        setGameState(null);
         setCurrentScreen('loading');
       } catch (error) {
         console.error('Failed to join game:', error);
@@ -106,66 +84,56 @@ function App() {
     }
   };
 
-  const handleServerFound = (url) => {
-    setServerUrl(url);
-    setPlayerId(null);
-    setPlayerName('');
-    setGameState(null);
-    setCurrentScreen('login');
-  };
-
   const handleStartGame = async () => {
-    if (playerId) {
+    if (isHost && gameState?.players) {
       try {
-        console.log('Resetting entire database for a new game.');
-        // Prvo obriši sve
-        await remove(dbRef(db, '/'));
+        const playerIds = Object.keys(gameState.players);
+        const words = ["jabuka", "sto", "kuća", "drvo", "lopta", "kompjuter", "telefon", "voda", "sunce"];
         
-        // Zatim postavi novo, čisto stanje
-        await set(dbRef(db, '/'), {
-          gameState: {
-            gameStarted: true,
-            inLobby: false,
-            roundNumber: 1,
-            host: playerId
-          },
-          players: {
-            [playerId]: {
-                name: playerName,
-                playerId: playerId,
-                points: 0,
-                heartbeat: Date.now()
-            }
-          }
+        await update(dbRef(db, 'gameState'), {
+          gameStarted: true,
+          inLobby: false,
+          currentDrawer: playerIds[0],
+          roundNumber: 1,
+          maxRounds: playerIds.length,
         });
-        console.log('Game state reset successfully.');
+
+        const firstWord = words[Math.floor(Math.random() * words.length)];
+        await set(dbRef(db, 'game/drawingWords'), { [playerIds[0]]: firstWord });
+
+        const roundDuration = 60; // 60 sekundi
+        await set(dbRef(db, 'game/timeLeft'), roundDuration);
+
+        // Odbrojavanje tajmera
+        const timerRef = dbRef(db, 'game/timeLeft');
+        const timerInterval = setInterval(async () => {
+          const timeLeftSnapshot = await get(timerRef);
+          const timeLeft = timeLeftSnapshot.val();
+          if (timeLeft > 0) {
+            await set(timerRef, timeLeft - 1);
+          } else {
+            clearInterval(timerInterval);
+            // Logika za prelazak na sledeću rundu
+          }
+        }, 1000);
+
       } catch (error) {
         console.error('Failed to start game:', error);
         setError('Failed to start game. Please try again.');
       }
     }
   };
-  
+
   const handlePlayAgain = async () => {
     if (playerId) {
-      try {
-        // Obriši se kao igrač
-        await remove(dbRef(db, `players/${playerId}`));
-      } catch (error) {
-        console.error('Failed to leave game:', error);
-      }
+      await remove(dbRef(db, `players/${playerId}`));
     }
-    
     setPlayerId(null);
     setPlayerName('');
     setCurrentScreen('login');
     setGameState(null);
     setError('');
   };
-
-  if (!playerId && currentScreen !== 'login') {
-    return <div className="loading">Connecting to server...</div>;
-  }
 
   if (error) {
     return (
@@ -180,7 +148,7 @@ function App() {
 
   switch (currentScreen) {
     case 'login':
-      return <LoginScreen onLogin={handleLogin} onServerFound={handleServerFound} />;
+      return <LoginScreen onLogin={handleLogin} />;
     case 'loading':
       return <div className="loading">Waiting for players...</div>;
     case 'lobby':
@@ -188,7 +156,7 @@ function App() {
         <Lobby
           players={gameState?.players ? Object.values(gameState.players) : []}
           onStartGame={handleStartGame}
-          isHost={gameState?.gameState?.host === playerId}
+          isHost={isHost}
         />
       );
     case 'game':

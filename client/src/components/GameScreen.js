@@ -12,39 +12,45 @@ const GameScreen = ({ playerId, playerName, gameState }) => {
   const [drawingHistory, setDrawingHistory] = useState([]);
   const [correctGuess, setCorrectGuess] = useState(null);
 
-  // Uklanjamo Socket.IO slušaoce i prilagođavamo logiku za Firebase
   useEffect(() => {
-    // Slušamo promene u DrawingCanvas-u
     const drawingRef = dbRef(db, 'game/drawingHistory');
-    const unsubDrawing = onValue(drawingRef, (snapshot) => {
-      const history = snapshot.val() || [];
-      setDrawingHistory(history);
+    const chatRef = dbRef(db, 'game/chatMessages');
+    const timerRef = dbRef(db, 'game/timeLeft');
+    const unsubTimers = onValue(timerRef, (snapshot) => {
+      const timeLeft = snapshot.val();
+      if (timeLeft === 0 && gameState?.gameState?.host === playerId) {
+        // Logika za prelazak na sledećeg crtača kada istekne tajmer
+      }
     });
 
-    // Slušamo promene u Chatu
-    const chatRef = dbRef(db, 'game/chatMessages');
+    const unsubDrawing = onValue(drawingRef, (snapshot) => {
+      const history = snapshot.val() || [];
+      setDrawingHistory(Object.values(history));
+    });
+
     const unsubChat = onValue(chatRef, (snapshot) => {
       const chatMsgs = snapshot.val() || [];
-      // Firebase vraća objekat, pa ga pretvaramo u niz
       setMessages(Object.values(chatMsgs));
     });
 
-    // Slušamo reč za crtanje
+    let unsubWord;
     if (gameState?.gameState?.currentDrawer === playerId) {
-        const wordRef = dbRef(db, `game/drawingWords/${playerId}`);
-        const unsubWord = onValue(wordRef, (snapshot) => {
-            const word = snapshot.val();
-            setCurrentWord(word || '');
-        });
-        return () => { unsubDrawing(); unsubChat(); unsubWord(); };
+      const wordRef = dbRef(db, `game/drawingWords/${playerId}`);
+      unsubWord = onValue(wordRef, (snapshot) => {
+        const word = snapshot.val();
+        setCurrentWord(word || '');
+      });
     }
 
-    // Kada igrač nije crtač, ne treba da vidi reč
-    setCurrentWord('');
-    
-    return () => { unsubDrawing(); unsubChat(); };
-
-  }, [playerId, gameState?.gameState?.currentDrawer]);
+    return () => {
+      unsubDrawing();
+      unsubChat();
+      unsubTimers();
+      if (unsubWord) {
+        unsubWord();
+      }
+    };
+  }, [playerId, gameState?.gameState?.currentDrawer, gameState?.gameState?.host]);
 
   const handleSendMessage = (message) => {
     if (message.trim()) {
@@ -89,17 +95,11 @@ const GameScreen = ({ playerId, playerName, gameState }) => {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '20px' }}>
         <div>
           <div className="canvas-container">
-            <Timer timeLeft={gameState.gameState.timeLeft} />
+            <Timer timeLeft={gameState.game?.timeLeft} />
             
             {isDrawing && currentWord && (
               <div style={{ background: 'linear-gradient(45deg, #4CAF50, #45a049)', color: 'white', padding: '10px', borderRadius: '8px', marginBottom: '15px', textAlign: 'center', fontWeight: 'bold' }}>
                 Draw: {currentWord}
-              </div>
-            )}
-            
-            {!isDrawing && !gameState.gameState.currentDrawer && (
-              <div style={{ background: '#ff9800', color: 'white', padding: '10px', borderRadius: '8px', marginBottom: '15px', textAlign: 'center' }}>
-                Waiting for drawer...
               </div>
             )}
             
@@ -108,7 +108,7 @@ const GameScreen = ({ playerId, playerName, gameState }) => {
                 Guess the word!
               </div>
             )}
-
+            
             <DrawingCanvas
               isDrawing={isDrawing}
               onDraw={handleDraw}
