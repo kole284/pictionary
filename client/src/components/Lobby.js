@@ -1,6 +1,7 @@
 import React from 'react';
 
-const Lobby = ({ players, onStartGame, isHost }) => {
+// Dodaj 'gameId' u props
+const Lobby = ({ players, onStartGame, isHost, gameId }) => {
   const minPlayers = 2;
   const playersCount = players ? players.length : 0;
   const canStart = playersCount >= minPlayers;
@@ -14,19 +15,30 @@ const Lobby = ({ players, onStartGame, isHost }) => {
 
       <div className="lobby-content">
         <div className="players-section">
-          <h2>Players ({playersCount}/{minPlayers})</h2>
+          <h2>Igrači ({playersCount}/{minPlayers})</h2>
           <div className="players-list">
             {players && players.map((player, index) => (
               <div key={player.playerId} className="player-item">
                 <span className="player-number">{index + 1}</span>
                 <span className="player-name">{player.name}</span>
-                {index === 0 && <span className="host-badge">👑 Host</span>}
+                {/* Prikazati ikonicu za hosta samo ako je igrač host */}
+                {isHost && index === 0 && <span className="host-badge">👑 Host</span>}
               </div>
             ))}
           </div>
         </div>
 
         <div className="lobby-info">
+          {/* Nova sekcija za prikaz ID-a igre */}
+          <div className="info-card">
+            <h3>Kod za ulazak u igru</h3>
+            <p>Podelite ovaj kod sa prijateljima da bi se pridružili igri:</p>
+            <div className="game-id-display">
+              <strong>{gameId}</strong>
+            </div>
+          </div>
+          
+          {/* Postojeći deo sa pravilima */}
           <div className="info-card">
             <h3>Pravila igre</h3>
             <ul>
