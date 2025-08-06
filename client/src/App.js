@@ -3,6 +3,8 @@ import LoginScreen from './components/LoginScreen';
 import Lobby from './components/Lobby';
 import GameScreen from './components/GameScreen';
 import GameEndScreen from './components/GameEndScreen';
+import { db } from './firebase';
+import { ref as dbRef, set, push, onValue, onChildAdded, update, remove } from 'firebase/database';
 
 function App() {
   const [playerId, setPlayerId] = useState(null);

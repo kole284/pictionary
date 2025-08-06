@@ -1,7 +1,18 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { ref as dbRef, onValue } from 'firebase/database';
+import { db } from '../firebase';
 
 const PlayerList = ({ players, currentDrawer, playerName }) => {
-  const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
+  const [playersData, setPlayers] = useState({});
+
+  useEffect(() => {
+    const unsub = onValue(dbRef(db, 'players'), (snapshot) => {
+      setPlayers(snapshot.val() || {});
+    });
+    return () => unsub();
+  }, []);
+
+  const sortedPlayers = [...Object.values(playersData)].sort((a, b) => b.score - a.score);
 
   return (
     <div className="player-list">
@@ -22,7 +33,7 @@ const PlayerList = ({ players, currentDrawer, playerName }) => {
         </div>
       ))}
       
-      {players.length === 0 && (
+      {Object.keys(playersData).length === 0 && (
         <div style={{ textAlign: 'center', color: '#666', padding: '20px' }}>
           Još nema igrača...
         </div>

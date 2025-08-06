@@ -1,4 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
+import { ref as dbRef, push, onChildAdded, set, remove } from 'firebase/database';
+import { db } from '../firebase';
 
 const DrawingCanvas = ({ isDrawing, onDraw, onClear, drawingHistory }) => {
   const canvasRef = useRef(null);
@@ -58,6 +60,21 @@ const DrawingCanvas = ({ isDrawing, onDraw, onClear, drawingHistory }) => {
       }
     }
   }, [drawingHistory]);
+
+  // Replace all socket or REST drawing logic with Firebase logic
+  // When drawing, push points to Firebase:
+  function sendDrawPoint(point) {
+    push(dbRef(db, 'drawingHistory'), point);
+  }
+  // Listen for new points:
+  useEffect(() => {
+    const unsub = onChildAdded(dbRef(db, 'drawingHistory'), (snapshot) => {
+      const point = snapshot.val();
+      // Add point to local state for rendering
+      // ...
+    });
+    return () => unsub();
+  }, []);
 
   const startDrawing = (e) => {
     if (!isDrawing) return;

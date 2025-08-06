@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { ref as dbRef, push, onChildAdded } from 'firebase/database';
+import { db } from '../firebase';
 
 const Chat = ({ messages, onSendMessage, isDrawing, correctGuess }) => {
   const [message, setMessage] = useState('');

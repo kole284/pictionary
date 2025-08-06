@@ -1,6 +1,20 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { ref as dbRef, onValue } from 'firebase/database';
+import { db } from '../firebase';
 
 const GameEndScreen = ({ gameState, onPlayAgain }) => {
+  const [players, setPlayers] = useState({});
+
+  useEffect(() => {
+    const unsubGame = onValue(dbRef(db, 'gameState'), (snapshot) => {
+      setGameState(snapshot.val());
+    });
+    const unsubPlayers = onValue(dbRef(db, 'players'), (snapshot) => {
+      setPlayers(snapshot.val() || {});
+    });
+    return () => { unsubGame(); unsubPlayers(); };
+  }, []);
+
   if (!gameState || !gameState.winner) {
     return (
       <div className="container">

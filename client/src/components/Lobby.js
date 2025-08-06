@@ -1,8 +1,22 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { ref as dbRef, onValue, set, update } from 'firebase/database';
+import { db } from '../firebase';
 
 const Lobby = ({ players, onStartGame, isHost }) => {
   const minPlayers = 2;
   const canStart = players.length >= minPlayers;
+  const [gameState, setGameState] = useState(null);
+  const [playersList, setPlayers] = useState({});
+
+  useEffect(() => {
+    const unsubGame = onValue(dbRef(db, 'gameState'), (snapshot) => {
+      setGameState(snapshot.val());
+    });
+    const unsubPlayers = onValue(dbRef(db, 'players'), (snapshot) => {
+      setPlayers(snapshot.val() || {});
+    });
+    return () => { unsubGame(); unsubPlayers(); };
+  }, []);
 
   return (
     <div className="lobby">
