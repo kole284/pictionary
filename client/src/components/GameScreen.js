@@ -13,9 +13,7 @@ const GameScreen = memo(({ playerId, playerName, gameState, nextRound }) => {
     const [correctGuess, setCorrectGuess] = useState(null);
 
     useEffect(() => {
-        console.log('GameScreen useEffect running.');
         if (!gameState || !gameState.gameState || !gameState.players) {
-            console.log('useEffect: Game state not yet available. Skipping setup.');
             return;
         }
 
@@ -26,34 +24,28 @@ const GameScreen = memo(({ playerId, playerName, gameState, nextRound }) => {
         const unsubDrawing = onValue(drawingRef, (snapshot) => {
             const history = snapshot.val() || {};
             setDrawingHistory(Object.values(history));
-            console.log('Drawing history updated.');
         });
 
         const unsubChat = onValue(chatRef, (snapshot) => {
             const chatMsgs = snapshot.val() || {};
             setMessages(Object.values(chatMsgs));
-            console.log('Chat messages updated.');
         });
         
         const unsubCorrectGuess = onValue(correctGuessRef, (snapshot) => {
             const guessData = snapshot.val();
             setCorrectGuess(guessData);
-            console.log('Correct guess state updated:', guessData);
         });
 
         let unsubWord;
         if (gameState?.gameState?.currentDrawer === playerId) {
-            console.log(`Current player is the drawer, listening for word.`);
             const wordRef = dbRef(db, `game/drawingWords/${playerId}`);
             unsubWord = onValue(wordRef, (snapshot) => {
                 const word = snapshot.val();
                 setCurrentWord(word || '');
-                console.log(`Current word set to: ${word}`);
             });
         }
 
         return () => {
-            console.log('GameScreen useEffect cleanup.');
             unsubDrawing();
             unsubChat();
             unsubCorrectGuess();
@@ -64,7 +56,6 @@ const GameScreen = memo(({ playerId, playerName, gameState, nextRound }) => {
     }, [playerId, gameState]);
 
     const handleSendMessage = async (message) => {
-        console.log('handleSendMessage called with:', message);
         if (message.trim()) {
             const newMessageRef = push(dbRef(db, 'game/chatMessages'));
             await set(newMessageRef, {
@@ -73,20 +64,16 @@ const GameScreen = memo(({ playerId, playerName, gameState, nextRound }) => {
                 timestamp: new Date().toLocaleTimeString(),
                 isSystem: false,
             });
-            console.log('Message sent to chat.');
 
             const currentDrawerId = gameState.gameState.currentDrawer;
             const wordSnapshot = await get(dbRef(db, `game/drawingWords/${currentDrawerId}`));
             const wordToGuess = wordSnapshot.val();
-            console.log(`Checking guess: "${message.toLowerCase()}" against correct word: "${wordToGuess.toLowerCase()}"`);
             
             if (message.toLowerCase() === wordToGuess.toLowerCase()) {
-                console.log('Correct guess!');
                 const correctGuessRef = dbRef(db, 'game/correctGuess');
                 const correctGuessSnapshot = await get(correctGuessRef);
 
                 if (!correctGuessSnapshot.val()) {
-                    console.log('First correct guess, updating scores.');
                     const points = 10;
                     await update(dbRef(db, `players/${playerId}`), {
                         points: (gameState.players[playerId]?.points || 0) + points,
@@ -102,7 +89,6 @@ const GameScreen = memo(({ playerId, playerName, gameState, nextRound }) => {
                         playerId: playerId,
                         word: wordToGuess
                     });
-                    console.log('Scores and correct guess data updated in database.');
 
                     const systemMessageRef = push(dbRef(db, 'game/chatMessages'));
                     await set(systemMessageRef, {
@@ -131,13 +117,10 @@ const GameScreen = memo(({ playerId, playerName, gameState, nextRound }) => {
     };
 
     if (!gameState || !gameState.gameState || !gameState.players) {
-        console.log('GameScreen: Loading state...');
         return <div className="loading">Učitavanje igre...</div>;
     }
     
     const timeLeft = gameState?.game?.timeLeft ?? 0;
-    console.log(`GameScreen: Render with gameState.gameStarted=${gameState.gameState.gameStarted}, gameState.inLobby=${gameState.gameState.inLobby}`);
-
     const isDrawing = gameState.gameState.currentDrawer === playerId;
 
     return (
