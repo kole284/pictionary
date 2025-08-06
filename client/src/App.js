@@ -71,14 +71,30 @@ function App() {
     console.log(`Attempting to log in with name: ${name}`);
     if (name.trim()) {
       try {
-        const newPlayerRef = push(dbRef(db, 'players'));
+        const playersRef = dbRef(db, 'players');
+        const newPlayerRef = push(playersRef);
         const newPlayerId = newPlayerRef.key;
-        await set(newPlayerRef, { 
+
+        // Kreiranje objekta za novog igrača
+        const newPlayer = {
             name: name, 
             playerId: newPlayerId, 
             points: 0, 
             heartbeat: Date.now() 
-        });
+        };
+
+        // Postavljanje novog igrača u bazu
+        await set(newPlayerRef, newPlayer);
+
+        // Provera da li je ovo prvi igrač, i ako jeste, postavi ga za hosta
+        onValue(playersRef, (snapshot) => {
+          const playersData = snapshot.val();
+          if (!playersData || Object.keys(playersData).length === 1) {
+            // Prvi igrač je host
+            update(dbRef(db, 'gameState'), { host: newPlayerId, inLobby: true });
+          }
+        }, { onlyOnce: true });
+
         setPlayerId(newPlayerId);
         setPlayerName(name);
         setGameState(null);
