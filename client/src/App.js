@@ -4,7 +4,7 @@ import Lobby from './components/Lobby';
 import GameScreen from './components/GameScreen';
 import GameEndScreen from './components/GameEndScreen';
 import { db } from './firebase';
-import { ref as dbRef, set, push, update, remove, onValue } from 'firebase/database';
+import { ref as dbRef, set, push, update, remove, onValue, onDisconnect } from 'firebase/database';
 
 
 function App() {
@@ -15,16 +15,16 @@ function App() {
   const [error, setError] = useState('');
   const [serverUrl, setServerUrl] = useState(null);
 
-  // Poll game state and send heartbeat every 2 seconds
+  // Glavni useEffect za praćenje stanja igre i slanje "heartbeata"
   useEffect(() => {
     if (!playerId) {
-      console.log('useEffect - No playerId, skipping polling.');
+      console.log('useEffect - No playerId, skipping listener setup.');
       return;
     }
     
-    console.log(`useEffect - PlayerId: ${playerId} is active. Starting polling.`);
-    
-    // Postavi onValue slušaoc van intervala da ne bi bilo ponavljanja
+    console.log(`useEffect - PlayerId: ${playerId} is active. Setting up listeners.`);
+
+    // OnValue slušač koji prati celo stanje baze
     const unsub = onValue(dbRef(db, '/'), (snapshot) => {
       const data = snapshot.val();
       console.log('Received new state from root:', data);
@@ -32,7 +32,6 @@ function App() {
       if (data) {
           setGameState(data);
 
-          // Provera stanja i prelazak na odgovarajući ekran
           if (data.gameState?.gameStarted && !data.gameState?.inLobby) {
             console.log('GameState indicates game has started. Changing screen to game.');
             setCurrentScreen('game');
@@ -40,35 +39,31 @@ function App() {
             console.log('GameState indicates game is in lobby. Changing screen to lobby.');
             setCurrentScreen('lobby');
           } else {
-            // Ako nije u lobiju ili igri, vrati na login
             setCurrentScreen('login');
           }
       } else {
-          // Ako je baza prazna, resetuj na login
           setGameState(null);
           setCurrentScreen('login');
       }
     });
 
+    // Postavljanje onDisconnect akcije za brisanje igrača
+    const playerRef = dbRef(db, `players/${playerId}`);
+    onDisconnect(playerRef).remove();
+    console.log(`onDisconnect hook set up for player: ${playerId}`);
+
+    // Interval za slanje heartbeata
     const sendHeartbeat = setInterval(() => {
-        set(dbRef(db, `players/${playerId}/heartbeat`), Date.now());
-        console.log(`Heartbeat sent for player: ${playerId}`);
+      set(dbRef(db, `players/${playerId}/heartbeat`), Date.now());
+      console.log(`Heartbeat sent for player: ${playerId}`);
     }, 2000);
     
     return () => {
-        console.log(`Clearing polling interval and onValue listener for player: ${playerId}`);
-        clearInterval(sendHeartbeat);
-        unsub(); // Ukloni slušaoca
-    };
-  }, [playerId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (playerId) {
-        console.log(`Player ${playerId} is leaving. Removing from database.`);
-        remove(dbRef(db, `players/${playerId}`));
-      }
+      console.log(`Clearing listeners and intervals for player: ${playerId}`);
+      clearInterval(sendHeartbeat);
+      unsub();
+      // Otkazivanje onDisconnect akcije pri isključivanju komponente
+      onDisconnect(playerRef).cancel();
     };
   }, [playerId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -76,28 +71,26 @@ function App() {
     console.log(`Attempting to log in with name: ${name}`);
     if (name.trim()) {
       try {
-        console.log('Name is valid. Pushing new player to database.');
         const newPlayerRef = push(dbRef(db, 'players'));
-        const playerId = newPlayerRef.key;
-        console.log(`Generated new playerId: ${playerId}`);
-        await set(newPlayerRef, { name: name, playerId: playerId, points: 0 });
-        console.log(`Player data saved to database for playerId: ${playerId}`);
-        setPlayerId(playerId);
+        const newPlayerId = newPlayerRef.key;
+        await set(newPlayerRef, { 
+            name: name, 
+            playerId: newPlayerId, 
+            points: 0, 
+            heartbeat: Date.now() 
+        });
+        setPlayerId(newPlayerId);
         setPlayerName(name);
         setGameState(null);
         setCurrentScreen('loading');
-        console.log('Login successful. Current screen: loading.');
       } catch (error) {
         console.error('Failed to join game:', error);
         setError('Failed to connect to server. Please try again.');
       }
-    } else {
-      console.log('Invalid name provided.');
     }
   };
 
   const handleServerFound = (url) => {
-    console.log(`Server found: ${url}. Resetting state.`);
     setServerUrl(url);
     setPlayerId(null);
     setPlayerName('');
@@ -106,10 +99,13 @@ function App() {
   };
 
   const handleStartGame = async () => {
-    console.log(`Player ${playerId} attempting to start game.`);
     if (playerId) {
       try {
         console.log('Resetting entire database for a new game.');
+        // Prvo obriši sve
+        await remove(dbRef(db, '/'));
+        
+        // Zatim postavi novo, čisto stanje
         await set(dbRef(db, '/'), {
           gameState: {
             gameStarted: true,
@@ -135,11 +131,10 @@ function App() {
   };
   
   const handlePlayAgain = async () => {
-    console.log(`Player ${playerId} wants to play again.`);
     if (playerId) {
       try {
-        console.log(`Removing player ${playerId} from database.`);
-        remove(dbRef(db, `players/${playerId}`));
+        // Obriši se kao igrač
+        await remove(dbRef(db, `players/${playerId}`));
       } catch (error) {
         console.error('Failed to leave game:', error);
       }
@@ -150,7 +145,6 @@ function App() {
     setCurrentScreen('login');
     setGameState(null);
     setError('');
-    console.log('State reset. Returning to login screen.');
   };
 
   if (!playerId && currentScreen !== 'login') {
