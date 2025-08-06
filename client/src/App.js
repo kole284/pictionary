@@ -1,3 +1,4 @@
+// App.js
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import LoginScreen from './components/LoginScreen';
 import Lobby from './components/Lobby';
@@ -27,11 +28,12 @@ function App() {
       await remove(dbRef(db, 'gameState'));
       await remove(dbRef(db, 'game'));
     } else {
-      console.log('cleanupGame: Players still exist. Skipping cleanup.');
+      console.log('cleanupGame: Players still exist. Deleting old game state if it exists, to avoid inconsistency.');
+      // Dodali smo ovu liniju!
+      await remove(dbRef(db, 'game'));
     }
   }, []);
 
-  // Nova funkcija za resetovanje stanja klijenta
   const resetClientState = () => {
     setGameState(null);
     setPlayerId(null);
@@ -48,7 +50,6 @@ function App() {
   
   // Novi useEffect za proveru i čišćenje na početku
   useEffect(() => {
-    // Ova funkcija se izvršava samo jednom pri prvom učitavanju komponente
     const initialCleanup = async () => {
       console.log('Initial check: Cleaning up old game state if necessary.');
       await cleanupGame();
@@ -56,10 +57,8 @@ function App() {
     initialCleanup();
   }, [cleanupGame]);
 
-
   const nextRound = useCallback(async () => {
     if (!isHost) return;
-
     const playersSnapshot = await get(dbRef(db, 'players'));
     const playersData = playersSnapshot.val();
     if (!playersData) {
@@ -69,27 +68,22 @@ function App() {
     const playerIds = Object.keys(playersData);
     const currentRound = (await get(dbRef(db, 'gameState/roundNumber'))).val() || 0;
     const currentDrawerId = (await get(dbRef(db, 'gameState/currentDrawer'))).val();
-
     if (currentRound >= playerIds.length) {
       console.log('nextRound: Max rounds reached, calling cleanup.');
       await cleanupGame();
       return;
     }
-    
     const nextDrawerIndex = (playerIds.indexOf(currentDrawerId) + 1) % playerIds.length;
     const nextDrawerId = playerIds[nextDrawerIndex];
     const newWord = words[Math.floor(Math.random() * words.length)];
-
     await set(dbRef(db, 'game/drawingHistory'), null);
     await set(dbRef(db, 'game/chatMessages'), null);
     await set(dbRef(db, 'game/correctGuess'), null);
     await set(dbRef(db, `game/drawingWords`), { [nextDrawerId]: newWord });
-    
     await update(dbRef(db, 'gameState'), {
       currentDrawer: nextDrawerId,
       roundNumber: currentRound + 1,
     });
-    
     const roundDuration = 60;
     await set(dbRef(db, 'game/timeLeft'), roundDuration);
   }, [isHost, words, cleanupGame]);
@@ -100,7 +94,6 @@ function App() {
       return;
     }
     console.log(`useEffect [playerId]: Player ID is ${playerId}. Setting up listeners.`);
-
     const playerRef = dbRef(db, `players/${playerId}`);
     onDisconnect(playerRef).remove();
 
@@ -108,18 +101,26 @@ function App() {
       const data = snapshot.val();
       console.log('Firebase data received:', data);
       
-      if (!data) {
-        console.log('No data received from Firebase. Game state is probably deleted. Resetting client state.');
+      if (!data || !data.players || Object.keys(data.players).length === 0) {
+        console.log('No players or no data received. Resetting client state.');
         resetClientState();
+        await cleanupGame(); // Osiguravamo brisanje stanja i na kraju
         return;
       }
       
       setGameState(data);
       setIsHost(data.gameState?.host === playerId);
-      
       const players = data.players || {};
       const numPlayers = Object.keys(players).length;
 
+      // Ako je player kreiran, ali gameState ne postoji, kreiramo ga.
+      if (numPlayers > 0 && !data.gameState) {
+          console.log('Found players but no game state. Creating a new lobby state.');
+          await set(dbRef(db, 'gameState'), { host: playerId, inLobby: true, gameStarted: false, roundNumber: 0, maxRounds: 0 });
+          setCurrentScreen('lobby');
+          return;
+      }
+      
       if (data.gameState?.gameStarted && data.gameState?.roundNumber > (data.gameState?.maxRounds || numPlayers)) {
         console.log('Detected game end conditions, switching to game end screen.');
         setCurrentScreen('gameEnd');
@@ -165,8 +166,10 @@ function App() {
         const playersSnapshot = await get(playersRef);
         const playersData = playersSnapshot.val();
 
+        // Obezbeđujemo da se gameState kreira uvek za prvog igrača
         if (!playersData || Object.keys(playersData).length === 1) {
-          await update(dbRef(db, 'gameState'), { host: newPlayerId, inLobby: true, gameStarted: false, roundNumber: 0, maxRounds: 0 });
+          console.log('First player logged in, creating gameState.');
+          await set(dbRef(db, 'gameState'), { host: newPlayerId, inLobby: true, gameStarted: false, roundNumber: 0, maxRounds: 0 });
         }
         
         setPlayerId(newPlayerId);
@@ -187,7 +190,6 @@ function App() {
         const firstWord = words[Math.floor(Math.random() * words.length)];
         const roundDuration = 60;
         console.log('Starting game with players:', playerIds);
-
         await update(dbRef(db, 'gameState'), {
           gameStarted: true,
           inLobby: false,
@@ -195,7 +197,6 @@ function App() {
           roundNumber: 1,
           maxRounds: playerIds.length,
         });
-
         await set(dbRef(db, 'game/drawingWords'), { [playerIds[0]]: firstWord });
         await set(dbRef(db, 'game/timeLeft'), roundDuration);
         await set(dbRef(db, 'game/correctGuess'), null);
