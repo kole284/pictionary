@@ -185,7 +185,6 @@ function App() {
     }
   };
 
-
   const handlePlayAgain = async () => {
     console.log('handlePlayAgain called.');
     if (playerId) {
@@ -244,4 +243,4 @@ function App() {
   }
 }
 
-export default App; 
+export default App;
