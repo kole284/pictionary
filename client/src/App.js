@@ -7,6 +7,11 @@ import { db } from './firebase';
 import { ref as dbRef, set, push, update, remove, onValue, onDisconnect, get } from 'firebase/database';
 
 function App() {
+    // Generišite jedinstveni ID za svaki tab/sesiju
+    const [sessionId] = useState(() => {
+        return `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    });
+    
     const [playerId, setPlayerId] = useState(null);
     const [playerName, setPlayerName] = useState('');
     const [gameState, setGameState] = useState(null);
@@ -122,6 +127,7 @@ function App() {
         }
         heartbeatIntervalRef.current = setInterval(() => {
             set(dbRef(db, `players/${playerId}/heartbeat`), Date.now());
+            set(dbRef(db, `players/${playerId}/sessionId`), sessionId);
         }, 2000);
 
         return () => {
@@ -130,7 +136,7 @@ function App() {
             }
             onDisconnect(playerRef).cancel();
         };
-    }, [playerId]);
+    }, [playerId, sessionId]);
 
     useEffect(() => {
         if (!isHost || !gameState?.gameState?.gameStarted) return;
@@ -157,6 +163,15 @@ function App() {
             }
         };
     }, [isHost, gameState]);
+
+    // Cleanup kada se tab zatvori
+    useEffect(() => {
+        return () => {
+            if (playerId) {
+                remove(dbRef(db, `players/${playerId}`)).catch(console.error);
+            }
+        };
+    }, [playerId]);
 
     const nextRound = useCallback(async () => {
         if (!isHost) return;
@@ -205,33 +220,75 @@ function App() {
     }, [isHost, words, cleanupGame]);
 
     const handleLogin = async (name) => {
-        if (name.trim()) {
-            try {
-                const playersRef = dbRef(db, 'players');
-                const newPlayerRef = push(playersRef);
-                const newPlayerId = newPlayerRef.key;
+        if (!name.trim()) return;
 
-                await set(newPlayerRef, {
-                    name: name,
-                    playerId: newPlayerId,
-                    points: 0,
-                    heartbeat: Date.now(),
-                });
-
-                const playersSnapshot = await get(playersRef);
-                const playersData = playersSnapshot.val();
-
-                if (!playersData || Object.keys(playersData).length === 1) {
-                    await set(dbRef(db, 'gameState'), { host: newPlayerId, inLobby: true, gameStarted: false, roundNumber: 0, maxRounds: 0 });
+        try {
+            const playersRef = dbRef(db, 'players');
+            
+            // Generiši jedinstveni compound ID
+            const uniqueId = `${sessionId}_${name.trim()}`;
+            
+            console.log('Attempting login with sessionId:', sessionId, 'name:', name.trim());
+            
+            // Prvo ukloni sve stare sesije ovog korisnika
+            const snapshot = await get(playersRef);
+            const players = snapshot.val() || {};
+            
+            const cleanupPromises = [];
+            for (const [key, player] of Object.entries(players)) {
+                // Ukloni igrače sa istim sessionId ili compound ID
+                if (player.sessionId === sessionId || 
+                    player.uniqueId === uniqueId ||
+                    (player.name === name.trim() && player.sessionId === sessionId)) {
+                    console.log('Removing duplicate player:', key, player.name);
+                    cleanupPromises.push(remove(dbRef(db, `players/${key}`)));
                 }
-                
-                setPlayerId(newPlayerId);
-                setPlayerName(name);
-                setCurrentScreen('loading');
-            } catch (error) {
-                console.error('Failed to join game:', error);
-                setError('Failed to connect to server. Please try again.');
             }
+            
+            if (cleanupPromises.length > 0) {
+                await Promise.all(cleanupPromises);
+                // Sačekaj kratko da se cleanup završi
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
+            // Sada dodaj novog igrača
+            const newPlayerRef = push(playersRef);
+            const newPlayerId = newPlayerRef.key;
+
+            console.log('Creating new player with ID:', newPlayerId);
+
+            await set(newPlayerRef, {
+                name: name.trim(),
+                playerId: newPlayerId,
+                sessionId: sessionId,
+                uniqueId: uniqueId,
+                points: 0,
+                heartbeat: Date.now(),
+                joinedAt: Date.now()
+            });
+
+            // Proveri da li je potrebno postaviti kao host
+            const updatedSnapshot = await get(playersRef);
+            const updatedPlayers = updatedSnapshot.val() || {};
+            
+            if (Object.keys(updatedPlayers).length === 1) {
+                console.log('Setting as host:', newPlayerId);
+                await set(dbRef(db, 'gameState'), { 
+                    host: newPlayerId, 
+                    inLobby: true, 
+                    gameStarted: false, 
+                    roundNumber: 0, 
+                    maxRounds: 0 
+                });
+            }
+            
+            setPlayerId(newPlayerId);
+            setPlayerName(name.trim());
+            setCurrentScreen('loading');
+            
+        } catch (error) {
+            console.error('Failed to join game:', error);
+            setError('Neuspešno povezivanje. Pokušajte ponovo.');
         }
     };
     
