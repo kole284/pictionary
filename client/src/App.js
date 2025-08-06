@@ -27,10 +27,10 @@ function App() {
         onValue(dbRef(db, 'gameState'), (snapshot) => {
           const state = snapshot.val();
           setGameState(state);
-          
-          if (state.gameStarted && !state.inLobby) {
+
+          if (state && state.gameStarted && !state.inLobby) {
             setCurrentScreen('game');
-          } else if (state.inLobby) {
+          } else if (state && state.inLobby) {
             setCurrentScreen('lobby');
           }
         });
