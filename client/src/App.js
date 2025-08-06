@@ -1,4 +1,3 @@
-// App.js
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import LoginScreen from './components/LoginScreen';
 import Lobby from './components/Lobby';
@@ -38,7 +37,7 @@ function App() {
     const playersSnapshot = await get(dbRef(db, 'players'));
     const playersData = playersSnapshot.val();
     if (!playersData) {
-      await cleanupGame(); // Pozivamo čišćenje ako nema igrača
+      await cleanupGame(); 
       return;
     }
     const playerIds = Object.keys(playersData);
@@ -47,11 +46,10 @@ function App() {
 
     if (currentRound >= playerIds.length) {
       console.log('nextRound: Max rounds reached, calling cleanup.');
-      await cleanupGame(); // Pozivamo čišćenje na kraju igre
+      await cleanupGame();
       return;
     }
     
-    // ... (ostala logika za sledeću rundu)
     const nextDrawerIndex = (playerIds.indexOf(currentDrawerId) + 1) % playerIds.length;
     const nextDrawerId = playerIds[nextDrawerIndex];
     const newWord = words[Math.floor(Math.random() * words.length)];
@@ -84,7 +82,6 @@ function App() {
       const data = snapshot.val();
       console.log('Firebase data received:', data);
       
-      // Dodatna provera: ako se stanje igre briše u bazi, i tvoj klijent to detektuje
       if (!data) {
         console.log('No data received from Firebase. Game state is probably deleted. Resetting client state.');
         setGameState(null);
@@ -100,7 +97,6 @@ function App() {
       const players = data.players || {};
       const numPlayers = Object.keys(players).length;
 
-      // Logika za prelazak na kraj igre
       if (data.gameState?.gameStarted && data.gameState?.roundNumber > (data.gameState?.maxRounds || numPlayers)) {
         console.log('Detected game end conditions, switching to game end screen.');
         setCurrentScreen('gameEnd');
@@ -125,7 +121,6 @@ function App() {
       clearInterval(sendHeartbeat);
       unsub();
       onDisconnect(playerRef).cancel();
-      // Pozivamo cleanup funkciju pri odjavljivanju
       cleanupGame();
     };
   }, [playerId, cleanupGame]);
@@ -133,7 +128,6 @@ function App() {
   const handleLogin = async (name) => {
     if (name.trim()) {
       try {
-        // ... (isti kod za prijavu)
         const playersRef = dbRef(db, 'players');
         const newPlayerRef = push(playersRef);
         const newPlayerId = newPlayerRef.key;
@@ -162,6 +156,36 @@ function App() {
     }
   };
 
+  const handleStartGame = async () => {
+    console.log('handleStartGame called by host.');
+    if (isHost && gameState?.players) {
+      try {
+        const playerIds = Object.keys(gameState.players);
+        const firstWord = words[Math.floor(Math.random() * words.length)];
+        const roundDuration = 60;
+        console.log('Starting game with players:', playerIds);
+
+        await update(dbRef(db, 'gameState'), {
+          gameStarted: true,
+          inLobby: false,
+          currentDrawer: playerIds[0],
+          roundNumber: 1,
+          maxRounds: playerIds.length,
+        });
+
+        await set(dbRef(db, 'game/drawingWords'), { [playerIds[0]]: firstWord });
+        await set(dbRef(db, 'game/timeLeft'), roundDuration);
+        await set(dbRef(db, 'game/correctGuess'), null);
+        await set(dbRef(db, 'game/chatMessages'), null);
+        console.log('Game state initialized in database.');
+      } catch (error) {
+        console.error('Failed to start game:', error);
+        setError('Failed to start game. Please try again.');
+      }
+    }
+  };
+
+
   const handlePlayAgain = async () => {
     console.log('handlePlayAgain called.');
     if (playerId) {
@@ -172,12 +196,10 @@ function App() {
     setCurrentScreen('login');
     setGameState(null);
     setError('');
-    // Osiguravamo čišćenje i na "Play Again"
     await cleanupGame(); 
   };
 
   if (error) {
-    // ... (isti kod za greške)
     return (
       <div className="container">
         <div className="error">{error}</div>
@@ -188,7 +210,6 @@ function App() {
     );
   }
 
-  // ... (switch deo ostaje isti)
   switch (currentScreen) {
     case 'login':
       return <LoginScreen onLogin={handleLogin} />;
