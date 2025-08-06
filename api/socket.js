@@ -1,27 +1,12 @@
 const express = require('express');
 const cors = require('cors');
+const { readLobby, writeLobby } = require('./storage');
 
 const app = express();
 
 // Middleware
 app.use(cors());
 app.use(express.json());
-
-// In-memory game state (for serverless, this will reset on each function call)
-let gameState = {
-  players: [],
-  currentDrawer: null,
-  currentWord: '',
-  gameStarted: false,
-  roundTime: 90,
-  timeLeft: 90,
-  roundNumber: 0,
-  maxRounds: 5,
-  drawingHistory: [],
-  inLobby: true,
-  host: null,
-  currentTimer: null
-};
 
 // Words for the game
 const words = [
@@ -44,185 +29,130 @@ const words = [
   'sneg', 'kiša', 'vetar', 'oblak', 'duga', 'munja'
 ];
 
-// Reset game state function
-function resetGameState() {
-  console.log('Resetting game state completely');
-  if (gameState.currentTimer) {
-    clearInterval(gameState.currentTimer);
-    gameState.currentTimer = null;
-  }
-  gameState.players = [];
-  gameState.currentDrawer = null;
-  gameState.currentWord = '';
-  gameState.gameStarted = false;
-  gameState.timeLeft = 90;
-  gameState.roundNumber = 0;
-  gameState.drawingHistory = [];
-  gameState.inLobby = true;
-  gameState.host = null;
-  console.log('Game state reset complete');
+function getDefaultLobby() {
+  return {
+    players: [],
+    currentDrawer: null,
+    currentWord: '',
+    gameStarted: false,
+    roundTime: 90,
+    timeLeft: 90,
+    roundNumber: 0,
+    maxRounds: 5,
+    drawingHistory: [],
+    inLobby: true,
+    host: null,
+    currentTimer: null
+  };
+}
+
+function resetLobby() {
+  writeLobby(getDefaultLobby());
 }
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    game: 'pictionary',
-    version: '1.0.0',
-    players: gameState.players.length,
-    gameStarted: gameState.gameStarted,
-    timestamp: Date.now()
-  });
+  res.json({ status: 'ok', game: 'pictionary', version: '1.0.0', timestamp: Date.now() });
 });
 
-// REST API endpoints for game state
+// Get game state
 app.get('/api/game-state', (req, res) => {
+  const lobby = readLobby();
   res.json({
-    players: gameState.players,
-    gameStarted: gameState.gameStarted,
-    inLobby: gameState.inLobby,
-    roundNumber: gameState.roundNumber,
-    timeLeft: gameState.timeLeft,
-    drawingHistory: gameState.drawingHistory,
-    currentDrawer: gameState.currentDrawer
+    players: lobby.players,
+    gameStarted: lobby.gameStarted,
+    inLobby: lobby.inLobby,
+    roundNumber: lobby.roundNumber,
+    timeLeft: lobby.timeLeft,
+    drawingHistory: lobby.drawingHistory,
+    currentDrawer: lobby.currentDrawer,
+    host: lobby.host
   });
 });
 
+// Join game
 app.post('/api/join-game', (req, res) => {
   const { playerName } = req.body;
-  
-  if (!playerName) {
-    return res.status(400).json({ error: 'Player name is required' });
-  }
-
-  // Check if player with same name already exists
-  const existingPlayer = gameState.players.find(p => p.name === playerName);
-  if (existingPlayer) {
+  if (!playerName) return res.status(400).json({ error: 'Player name is required' });
+  const lobby = readLobby();
+  if (lobby.players.find(p => p.name === playerName)) {
     return res.status(400).json({ error: 'Player with this name already exists' });
   }
-
   const player = {
-    id: Date.now().toString(), // Simple ID for serverless
+    id: Date.now().toString(),
     name: playerName,
     score: 0,
     isDrawing: false,
     lastSeen: Date.now()
   };
-
-  gameState.players.push(player);
-
-  // Set host if this is the first player
-  if (gameState.players.length === 1) {
-    gameState.host = player.id;
-  }
-
-  res.json({
-    playerId: player.id,
-    gameState: {
-      players: gameState.players,
-      gameStarted: gameState.gameStarted,
-      inLobby: gameState.inLobby,
-      roundNumber: gameState.roundNumber,
-      timeLeft: gameState.timeLeft,
-      drawingHistory: gameState.drawingHistory,
-      currentDrawer: gameState.currentDrawer
-    }
-  });
+  lobby.players.push(player);
+  if (lobby.players.length === 1) lobby.host = player.id;
+  writeLobby(lobby);
+  res.json({ playerId: player.id, gameState: lobby });
 });
 
-// Game functions for REST API
+// Start game
 app.post('/api/start-game', (req, res) => {
   const { playerId } = req.body;
-  
-  if (playerId !== gameState.host) {
-    return res.status(403).json({ error: 'Only host can start the game' });
-  }
-  
-  if (gameState.players.length < 2) {
-    return res.status(400).json({ error: 'Need at least 2 players' });
-  }
-  
-  gameState.gameStarted = true;
-  gameState.inLobby = false;
-  gameState.roundNumber = 1;
-  
-  res.json({
-    success: true,
-    gameState: {
-      gameStarted: true,
-      inLobby: false,
-      roundNumber: 1
-    }
-  });
+  const lobby = readLobby();
+  if (playerId !== lobby.host) return res.status(403).json({ error: 'Only host can start the game' });
+  if (lobby.players.length < 2) return res.status(400).json({ error: 'Need at least 2 players' });
+  lobby.gameStarted = true;
+  lobby.inLobby = false;
+  lobby.roundNumber = 1;
+  writeLobby(lobby);
+  res.json({ success: true, gameState: lobby });
 });
 
-// Heartbeat endpoint to keep players active
+// Heartbeat
 app.post('/api/heartbeat', (req, res) => {
   const { playerId } = req.body;
-  
-  if (!playerId) {
-    return res.status(400).json({ error: 'Player ID is required' });
-  }
-
-  const player = gameState.players.find(p => p.id === playerId);
+  const lobby = readLobby();
+  const player = lobby.players.find(p => p.id === playerId);
   if (player) {
     player.lastSeen = Date.now();
+    writeLobby(lobby);
     res.json({ success: true });
   } else {
     res.status(404).json({ error: 'Player not found' });
   }
 });
 
-// Leave game endpoint
+// Leave game
 app.post('/api/leave-game', (req, res) => {
   const { playerId } = req.body;
-  
-  if (!playerId) {
-    return res.status(400).json({ error: 'Player ID is required' });
-  }
-
-  // Remove player from game
-  gameState.players = gameState.players.filter(p => p.id !== playerId);
-  
-  // If no players left, reset game
-  if (gameState.players.length === 0) {
-    resetGameState();
+  const lobby = readLobby();
+  lobby.players = lobby.players.filter(p => p.id !== playerId);
+  if (lobby.players.length === 0) {
+    resetLobby();
   } else {
-    // Update host if needed
-    if (gameState.host === playerId) {
-      gameState.host = gameState.players[0].id;
-    }
+    if (lobby.host === playerId) lobby.host = lobby.players[0].id;
+    writeLobby(lobby);
   }
-
   res.json({ success: true });
 });
 
-// Cleanup inactive players (called periodically)
+// Cleanup inactive players
 app.post('/api/cleanup', (req, res) => {
   const now = Date.now();
-  const inactiveThreshold = 30000; // 30 seconds
-  
-  // Remove inactive players
-  const activePlayers = gameState.players.filter(p => 
-    (now - p.lastSeen) < inactiveThreshold
-  );
-  
-  if (activePlayers.length !== gameState.players.length) {
-    gameState.players = activePlayers;
-    
-    // Update host if needed
-    if (gameState.players.length > 0 && !gameState.players.find(p => p.id === gameState.host)) {
-      gameState.host = gameState.players[0].id;
+  const inactiveThreshold = 30000;
+  const lobby = readLobby();
+  const activePlayers = lobby.players.filter(p => (now - p.lastSeen) < inactiveThreshold);
+  if (activePlayers.length !== lobby.players.length) {
+    lobby.players = activePlayers;
+    if (lobby.players.length > 0 && !lobby.players.find(p => p.id === lobby.host)) {
+      lobby.host = lobby.players[0].id;
     }
-    
-    // Reset game if no players left
-    if (gameState.players.length === 0) {
-      resetGameState();
-    }
+    if (lobby.players.length === 0) resetLobby();
+    else writeLobby(lobby);
   }
-  
-  res.json({ success: true, activePlayers: gameState.players.length });
+  res.json({ success: true, activePlayers: lobby.players.length });
 });
 
-// Export for Vercel
+// Reset endpoint (for testing)
+app.post('/api/reset', (req, res) => {
+  resetLobby();
+  res.json({ success: true });
+});
+
 module.exports = app; 
