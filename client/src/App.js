@@ -5,29 +5,7 @@ import GameScreen from './components/GameScreen';
 import GameEndScreen from './components/GameEndScreen';
 import { db } from './firebase';
 import { ref as dbRef, set, push, update, remove, onValue } from 'firebase/database';
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getDatabase } from "firebase/database";
-import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyC0xN6RbwK9yfWlaCStD1GGANvNVoXtlYI",
-  authDomain: "pictionary-b38c4.firebaseapp.com",
-  projectId: "pictionary-b38c4",
-  storageBucket: "pictionary-b38c4.firebasestorage.app",
-  messagingSenderId: "313679665716",
-  appId: "1:313679665716:web:f11e6716def207fed34861",
-  measurementId: "G-P1LF41WCB2",
-  databaseURL: "https://console.firebase.google.com/u/0/project/pictionary-b38c4/database/pictionary-b38c4-default-rtdb/data/~2F"
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
 
 function App() {
   const [playerId, setPlayerId] = useState(null);
