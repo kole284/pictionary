@@ -43,14 +43,6 @@ const GameScreen = ({ playerId, playerName, gameState, nextRound }) => {
             const guessData = snapshot.val();
             setCorrectGuess(guessData);
             console.log('Correct guess state updated:', guessData);
-            
-            if (guessData && gameState?.gameState?.host === playerId && nextRound) {
-                console.log('Host detected correct guess, scheduling next round in 5 seconds.');
-                setTimeout(() => {
-                    console.log('Timeout finished, calling nextRound.');
-                    nextRound();
-                }, 5000);
-            }
         });
 
         let unsubWord;
@@ -73,7 +65,7 @@ const GameScreen = ({ playerId, playerName, gameState, nextRound }) => {
                 unsubWord();
             }
         };
-    }, [playerId, gameState, nextRound]);
+    }, [playerId, gameState]); // Ukloni nextRound iz zavisnosti
 
     const handleSendMessage = async (message) => {
         console.log('handleSendMessage called with:', message);

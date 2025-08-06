@@ -14,6 +14,7 @@ function App() {
     const [error, setError] = useState('');
     const [isHost, setIsHost] = useState(false);
     const timerIntervalRef = useRef(null);
+    const roundEndTimeoutRef = useRef(null);
 
     const words = ["jabuka", "sto", "kuća", "drvo", "lopta", "kompjuter", "telefon", "voda", "sunce"];
 
@@ -43,6 +44,10 @@ function App() {
             clearInterval(timerIntervalRef.current);
             timerIntervalRef.current = null;
         }
+        if (roundEndTimeoutRef.current) {
+            clearTimeout(roundEndTimeoutRef.current);
+            roundEndTimeoutRef.current = null;
+        }
         console.log('Client state has been reset to default.');
     };
     
@@ -56,25 +61,41 @@ function App() {
 
     const nextRound = useCallback(async () => {
         if (!isHost) return;
+        console.log('nextRound: Executing new round logic.');
+        
         const playersSnapshot = await get(dbRef(db, 'players'));
         const playersData = playersSnapshot.val();
         if (!playersData) {
             await cleanupGame();
             return;
         }
+        
         const playerIds = Object.keys(playersData);
         const currentRound = (await get(dbRef(db, 'gameState/roundNumber'))).val() || 0;
-        const currentDrawerId = (await get(dbRef(db, 'gameState/currentDrawer'))).val();
-
+        
         if (currentRound >= playerIds.length) {
-            console.log('nextRound: Max rounds reached, calling cleanup.');
-            await cleanupGame();
+            console.log('nextRound: Max rounds reached. Game Over!');
+            // Logika za završetak igre i postavljanje pobednika
+            const finalScores = Object.values(playersData).sort((a, b) => b.points - a.points);
+            const winner = finalScores[0];
+
+            await update(dbRef(db, 'gameState'), {
+                gameStarted: false,
+                inLobby: false,
+                currentDrawer: null,
+                roundNumber: currentRound + 1, // Set to a value that triggers game end
+                winner: { name: winner.name, score: winner.points },
+                finalScores: finalScores,
+            });
+            await remove(dbRef(db, 'game'));
             return;
         }
-        
+
+        const currentDrawerId = (await get(dbRef(db, 'gameState/currentDrawer'))).val();
         const nextDrawerIndex = (playerIds.indexOf(currentDrawerId) + 1) % playerIds.length;
         const nextDrawerId = playerIds[nextDrawerIndex];
         const newWord = words[Math.floor(Math.random() * words.length)];
+        
         await set(dbRef(db, 'game/drawingHistory'), null);
         await set(dbRef(db, 'game/chatMessages'), null);
         await set(dbRef(db, 'game/correctGuess'), null);
@@ -85,102 +106,125 @@ function App() {
         });
         const roundDuration = 60;
         await set(dbRef(db, 'game/timeLeft'), roundDuration);
+        console.log(`nextRound: Started round ${currentRound + 1} with drawer ${playersData[nextDrawerId]?.name}.`);
     }, [isHost, words, cleanupGame]);
-    
+
     useEffect(() => {
         if (isHost && gameState?.gameState?.gameStarted) {
             const timeLeftRef = dbRef(db, 'game/timeLeft');
             
-            const intervalId = setInterval(async () => {
+            if (timerIntervalRef.current) {
+                clearInterval(timerIntervalRef.current);
+            }
+            
+            timerIntervalRef.current = setInterval(async () => {
                 const snapshot = await get(timeLeftRef);
                 const currentLeft = snapshot.val();
                 if (currentLeft > 0) {
                     await set(timeLeftRef, currentLeft - 1);
                 } else if (currentLeft === 0) {
-                    // Pozovi nextRound kada vreme istekne
-                    if (isHost && nextRound) {
+                    clearInterval(timerIntervalRef.current);
+                    timerIntervalRef.current = null;
+                    if (isHost) {
+                        console.log('Timer expired, calling nextRound.');
                         nextRound();
                     }
                 }
             }, 1000);
-
-            return () => clearInterval(intervalId);
         }
+
+        return () => {
+            if (timerIntervalRef.current) {
+                clearInterval(timerIntervalRef.current);
+            }
+        };
     }, [isHost, gameState, nextRound]);
 
-
-useEffect(() => {
-    if (!playerId) {
-        console.log('useEffect [playerId]: No playerId, returning.');
-        return;
-    }
-    console.log(`useEffect [playerId]: Player ID is ${playerId}. Setting up listeners.`);
-    const playerRef = dbRef(db, `players/${playerId}`);
-    onDisconnect(playerRef).remove();
-
-    const unsub = onValue(dbRef(db, '/'), async (snapshot) => {
-        const data = snapshot.val();
-        console.log('Firebase data received:', data);
-        
-        setGameState(data);
-        
-        if (!data || !data.players || Object.keys(data.players).length === 0) {
-            console.log('No players or no data received. Resetting client state.');
-            resetClientState();
-            await cleanupGame();
+    useEffect(() => {
+        if (!playerId) {
+            console.log('useEffect [playerId]: No playerId, returning.');
             return;
         }
+        console.log(`useEffect [playerId]: Player ID is ${playerId}. Setting up listeners.`);
+        const playerRef = dbRef(db, `players/${playerId}`);
+        onDisconnect(playerRef).remove();
 
-        setIsHost(data.gameState?.host === playerId);
-        const players = data.players || {};
-        const numPlayers = Object.keys(players).length;
+        const unsub = onValue(dbRef(db, '/'), async (snapshot) => {
+            const data = snapshot.val();
+            console.log('Firebase data received:', data);
+            
+            const currentIsHost = data?.gameState?.host === playerId;
+            setIsHost(currentIsHost);
+            setGameState(data);
+            
+            if (!data || !data.players || Object.keys(data.players).length === 0) {
+                console.log('No players or no data received. Resetting client state.');
+                resetClientState();
+                await cleanupGame();
+                return;
+            }
 
-        if (isHost) {
-            const now = Date.now();
-            for (const id in players) {
-                if (now - players[id].heartbeat > 10000) {
-                    console.log(`Player ${players[id].name} (${id}) is inactive. Removing.`);
-                    await remove(dbRef(db, `players/${id}`));
+            if (currentIsHost) {
+                const now = Date.now();
+                for (const id in data.players) {
+                    if (now - data.players[id].heartbeat > 15000) {
+                        console.log(`Player ${data.players[id].name} (${id}) is inactive. Removing.`);
+                        await remove(dbRef(db, `players/${id}`));
+                    }
+                }
+                
+                // Host only logic for handling correct guess and triggering next round
+                if (data.game?.correctGuess && !roundEndTimeoutRef.current) {
+                    console.log('Host detected correct guess, scheduling next round in 5 seconds.');
+                    roundEndTimeoutRef.current = setTimeout(() => {
+                        console.log('Timeout finished, calling nextRound.');
+                        nextRound();
+                        if (roundEndTimeoutRef.current) {
+                           clearTimeout(roundEndTimeoutRef.current);
+                           roundEndTimeoutRef.current = null;
+                        }
+                    }, 5000);
+                } else if (!data.game?.correctGuess && roundEndTimeoutRef.current) {
+                    console.log('Correct guess state cleared. Cancelling scheduled next round.');
+                    clearTimeout(roundEndTimeoutRef.current);
+                    roundEndTimeoutRef.current = null;
                 }
             }
-        }
 
-        if (!data.gameState) {
-            console.log('No game state found. Switching to login screen.');
-            setCurrentScreen('login');
-        } else if (data.gameState.inLobby) {
-            console.log('In lobby, switching to lobby screen.');
-            setCurrentScreen('lobby');
-        } else if (data.gameState.gameStarted && data.gameState.roundNumber > (data.gameState.maxRounds || numPlayers)) {
-            console.log('Detected game end conditions, switching to game end screen.');
-            setCurrentScreen('gameEnd');
-        } else if (data.gameState.gameStarted && !data.gameState.inLobby) {
-            console.log('Game has started, switching to game screen.');
-            setCurrentScreen('game');
-        } else {
-            console.log('Fallback to login screen because no active game state is found.');
-            setCurrentScreen('login');
-        }
-    });
-
-    const sendHeartbeat = setInterval(() => {
-        set(dbRef(db, `players/${playerId}/heartbeat`), Date.now());
-    }, 2000);
-
-    return () => {
-        console.log('Cleanup for [playerId] useEffect. Player ID:', playerId);
-        clearInterval(sendHeartbeat);
-        unsub();
-        onDisconnect(playerRef).cancel();
-        get(dbRef(db, 'players')).then(snapshot => {
-            if (!snapshot.exists()) {
-                cleanupGame();
+            if (!data.gameState) {
+                setCurrentScreen('login');
+            } else if (data.gameState.inLobby) {
+                setCurrentScreen('lobby');
+            } else if (data.gameState.gameStarted && data.gameState.roundNumber > (data.gameState.maxRounds || 0)) {
+                setCurrentScreen('gameEnd');
+            } else if (data.gameState.gameStarted && !data.gameState.inLobby) {
+                setCurrentScreen('game');
+            } else {
+                setCurrentScreen('login');
             }
         });
-    };
-}, [playerId, cleanupGame, resetClientState, nextRound, isHost]); // Dodaj isHost kao zavisnost
 
-       const handleLogin = async (name) => {
+        const sendHeartbeat = setInterval(() => {
+            set(dbRef(db, `players/${playerId}/heartbeat`), Date.now());
+        }, 2000);
+
+        return () => {
+            console.log('Cleanup for [playerId] useEffect. Player ID:', playerId);
+            clearInterval(sendHeartbeat);
+            unsub();
+            onDisconnect(playerRef).cancel();
+            if (roundEndTimeoutRef.current) {
+                clearTimeout(roundEndTimeoutRef.current);
+            }
+            get(dbRef(db, 'players')).then(snapshot => {
+                if (!snapshot.exists()) {
+                    cleanupGame();
+                }
+            });
+        };
+    }, [playerId, cleanupGame, resetClientState, nextRound]);
+
+    const handleLogin = async (name) => {
         if (name.trim()) {
             try {
                 const playersRef = dbRef(db, 'players');
