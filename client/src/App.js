@@ -20,15 +20,55 @@ function App() {
 
     const words = ["jabuka", "sto", "kuća", "drvo", "lopta", "kompjuter", "telefon", "voda", "sunce"];
 
+    // FUNKCIJE DEKLARISANE NA VRHU
     const cleanupGame = useCallback(async () => {
         const playersSnapshot = await get(dbRef(db, 'players'));
         const playersData = playersSnapshot.val();
-
         if (!playersData || Object.keys(playersData).length === 0) {
             await remove(dbRef(db, 'gameState'));
             await remove(dbRef(db, 'game'));
         }
     }, []);
+
+    const nextRound = useCallback(async () => {
+        if (!isHost) return;
+        const playersSnapshot = await get(dbRef(db, 'players'));
+        const playersData = playersSnapshot.val();
+        if (!playersData) {
+            await cleanupGame();
+            return;
+        }
+        const playerIds = Object.keys(playersData);
+        const currentRound = (await get(dbRef(db, 'gameState/roundNumber'))).val() || 0;
+        if (currentRound >= playerIds.length) {
+            const finalScores = Object.values(playersData).sort((a, b) => b.points - a.points);
+            const winner = finalScores[0];
+            await update(dbRef(db, 'gameState'), {
+                gameStarted: false,
+                inLobby: false,
+                currentDrawer: null,
+                roundNumber: currentRound + 1,
+                winner: { name: winner.name, score: winner.points },
+                finalScores: finalScores,
+            });
+            await remove(dbRef(db, 'game'));
+            return;
+        }
+        const currentDrawerId = (await get(dbRef(db, 'gameState/currentDrawer'))).val();
+        const nextDrawerIndex = (playerIds.indexOf(currentDrawerId) + 1) % playerIds.length;
+        const nextDrawerId = playerIds[nextDrawerIndex];
+        const newWord = words[Math.floor(Math.random() * words.length)];
+        await set(dbRef(db, 'game/drawingHistory'), null);
+        await set(dbRef(db, 'game/chatMessages'), null);
+        await set(dbRef(db, 'game/correctGuess'), null);
+        await set(dbRef(db, `game/drawingWords`), { [nextDrawerId]: newWord });
+        await update(dbRef(db, 'gameState'), {
+            currentDrawer: nextDrawerId,
+            roundNumber: currentRound + 1,
+        });
+        const roundDuration = 60;
+        await set(dbRef(db, 'game/timeLeft'), roundDuration);
+    }, [isHost, words, cleanupGame]);
 
     const resetClientState = () => {
         setGameState(null);
@@ -51,192 +91,21 @@ function App() {
         }
     };
 
-    // Glavni listener za sve promene, ali sada je razdvojen
-    useEffect(() => {
-        const unsubGameState = onValue(dbRef(db, 'gameState'), (snapshot) => {
-            const data = snapshot.val();
-            setGameState(prev => ({ ...prev, gameState: data }));
-        });
-
-        const unsubGameData = onValue(dbRef(db, 'game'), (snapshot) => {
-            const data = snapshot.val();
-            setGameState(prev => ({ ...prev, game: data }));
-        });
-
-        const unsubPlayers = onValue(dbRef(db, 'players'), (snapshot) => {
-            const data = snapshot.val();
-            setGameState(prev => ({ ...prev, players: data }));
-        });
-
-        return () => {
-            unsubGameState();
-            unsubGameData();
-            unsubPlayers();
-        };
-    }, []);
-
-    // Praćenje i sinhronizacija stanja
-    useEffect(() => {
-        if (!gameState || !gameState.players) {
-            if (!isLoginPhaseRef.current) {
-                // Ako nema igrača, resetujemo stanje
-                if (gameState && (!gameState.players || Object.keys(gameState.players).length === 0)) {
-                    resetClientState();
-                }
-            }
-            return;
-        }
-        
-        const currentIsHost = gameState?.gameState?.host === playerId;
-        setIsHost(currentIsHost);
-
-        if (isHost && gameState.game?.correctGuess && !roundEndTimeoutRef.current) {
-            roundEndTimeoutRef.current = setTimeout(() => {
-                nextRound();
-                clearTimeout(roundEndTimeoutRef.current);
-                roundEndTimeoutRef.current = null;
-            }, 5000);
-        } else if (isHost && !gameState.game?.correctGuess && roundEndTimeoutRef.current) {
-            clearTimeout(roundEndTimeoutRef.current);
-            roundEndTimeoutRef.current = null;
-        }
-
-        if (!gameState.gameState) {
-            if (!isLoginPhaseRef.current) {
-                setCurrentScreen('login');
-            }
-        } else if (gameState.gameState.inLobby) {
-            setCurrentScreen('lobby');
-        } else if (gameState.gameState.gameStarted && gameState.gameState.roundNumber > (gameState.gameState.maxRounds || 0)) {
-            setCurrentScreen('gameEnd');
-        } else if (gameState.gameState.gameStarted && !gameState.gameState.inLobby) {
-            setCurrentScreen('game');
-        } else {
-            if (!isLoginPhaseRef.current) {
-                setCurrentScreen('login');
-            }
-        }
-    }, [gameState, playerId, isHost]);
-
-    // Održavanje igrača i provera sesije
-    useEffect(() => {
-        if (!playerId) {
-            return;
-        }
-
-        // Postavi onDisconnect listener
-        const playerRef = dbRef(db, `players/${playerId}`);
-        onDisconnect(playerRef).remove().catch(err => console.error("Failed to set onDisconnect: ", err));
-
-        // Pokreni heartbeat
-        if (heartbeatIntervalRef.current) {
-            clearInterval(heartbeatIntervalRef.current);
-        }
-        heartbeatIntervalRef.current = setInterval(() => {
-            set(dbRef(db, `players/${playerId}/heartbeat`), Date.now());
-        }, 2000);
-
-        // Cleanup funkcija
-        return () => {
-            if (heartbeatIntervalRef.current) {
-                clearInterval(heartbeatIntervalRef.current);
-            }
-            onDisconnect(playerRef).cancel();
-        };
-    }, [playerId]);
-
-    // Logika za tajmer, samo za hosta
-    useEffect(() => {
-        if (!isHost || !gameState?.gameState?.gameStarted) return;
-        
-        const timeLeftRef = dbRef(db, 'game/timeLeft');
-        if (timerIntervalRef.current) {
-            clearInterval(timerIntervalRef.current);
-        }
-        timerIntervalRef.current = setInterval(async () => {
-            const snapshot = await get(timeLeftRef);
-            const currentLeft = snapshot.val();
-            if (currentLeft > 0) {
-                await set(timeLeftRef, currentLeft - 1);
-            } else if (currentLeft === 0) {
-                clearInterval(timerIntervalRef.current);
-                timerIntervalRef.current = null;
-                nextRound();
-            }
-        }, 1000);
-
-        return () => {
-            if (timerIntervalRef.current) {
-                clearInterval(timerIntervalRef.current);
-            }
-        };
-    }, [isHost, gameState, nextRound]);
-
-    const nextRound = useCallback(async () => {
-        if (!isHost) return;
-    
-        const playersSnapshot = await get(dbRef(db, 'players'));
-        const playersData = playersSnapshot.val();
-        if (!playersData) {
-            await cleanupGame();
-            return;
-        }
-    
-        const playerIds = Object.keys(playersData);
-        const currentRound = (await get(dbRef(db, 'gameState/roundNumber'))).val() || 0;
-    
-        if (currentRound >= playerIds.length) {
-            const finalScores = Object.values(playersData).sort((a, b) => b.points - a.points);
-            const winner = finalScores[0];
-    
-            await update(dbRef(db, 'gameState'), {
-                gameStarted: false,
-                inLobby: false,
-                currentDrawer: null,
-                roundNumber: currentRound + 1,
-                winner: { name: winner.name, score: winner.points },
-                finalScores: finalScores,
-            });
-            await remove(dbRef(db, 'game'));
-            return;
-        }
-    
-        const currentDrawerId = (await get(dbRef(db, 'gameState/currentDrawer'))).val();
-        const nextDrawerIndex = (playerIds.indexOf(currentDrawerId) + 1) % playerIds.length;
-        const nextDrawerId = playerIds[nextDrawerIndex];
-        const newWord = words[Math.floor(Math.random() * words.length)];
-    
-        await set(dbRef(db, 'game/drawingHistory'), null);
-        await set(dbRef(db, 'game/chatMessages'), null);
-        await set(dbRef(db, 'game/correctGuess'), null);
-        await set(dbRef(db, `game/drawingWords`), { [nextDrawerId]: newWord });
-        await update(dbRef(db, 'gameState'), {
-            currentDrawer: nextDrawerId,
-            roundNumber: currentRound + 1,
-        });
-        const roundDuration = 60;
-        await set(dbRef(db, 'game/timeLeft'), roundDuration);
-    }, [isHost, words, cleanupGame]);
-
     const handleLogin = async (name) => {
         if (!name.trim()) return;
-
         try {
             isLoginPhaseRef.current = true;
             const playersRef = dbRef(db, 'players');
             const newPlayerRef = push(playersRef);
             const newPlayerId = newPlayerRef.key;
-
             await set(newPlayerRef, {
                 name: name.trim(),
                 playerId: newPlayerId,
                 points: 0,
                 heartbeat: Date.now(),
             });
-
             const playersSnapshot = await get(playersRef);
             const playersData = playersSnapshot.val();
-
             if (!playersData || Object.keys(playersData).length === 1) {
                 await set(dbRef(db, 'gameState'), {
                     host: newPlayerId,
@@ -246,11 +115,9 @@ function App() {
                     maxRounds: 0
                 });
             }
-
             setPlayerId(newPlayerId);
             setPlayerName(name.trim());
             setCurrentScreen('loading');
-
         } catch (error) {
             console.error('Failed to join game:', error);
             setError('Neuspešno povezivanje. Pokušajte ponovo.');
@@ -295,6 +162,110 @@ function App() {
         await cleanupGame();
     };
 
+    // USEEFFECT HOOKOVI SADA MOGU DA POZIVAJU GORE DEFINISANE FUNKCIJE
+    useEffect(() => {
+        const unsubGameState = onValue(dbRef(db, 'gameState'), (snapshot) => {
+            const data = snapshot.val();
+            setGameState(prev => ({ ...prev, gameState: data }));
+        });
+        const unsubGameData = onValue(dbRef(db, 'game'), (snapshot) => {
+            const data = snapshot.val();
+            setGameState(prev => ({ ...prev, game: data }));
+        });
+        const unsubPlayers = onValue(dbRef(db, 'players'), (snapshot) => {
+            const data = snapshot.val();
+            setGameState(prev => ({ ...prev, players: data }));
+        });
+        return () => {
+            unsubGameState();
+            unsubGameData();
+            unsubPlayers();
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!gameState || !gameState.players) {
+            if (!isLoginPhaseRef.current) {
+                if (gameState && (!gameState.players || Object.keys(gameState.players).length === 0)) {
+                    resetClientState();
+                }
+            }
+            return;
+        }
+        const currentIsHost = gameState?.gameState?.host === playerId;
+        setIsHost(currentIsHost);
+        if (isHost && gameState.game?.correctGuess && !roundEndTimeoutRef.current) {
+            roundEndTimeoutRef.current = setTimeout(() => {
+                nextRound();
+                clearTimeout(roundEndTimeoutRef.current);
+                roundEndTimeoutRef.current = null;
+            }, 5000);
+        } else if (isHost && !gameState.game?.correctGuess && roundEndTimeoutRef.current) {
+            clearTimeout(roundEndTimeoutRef.current);
+            roundEndTimeoutRef.current = null;
+        }
+        if (!gameState.gameState) {
+            if (!isLoginPhaseRef.current) {
+                setCurrentScreen('login');
+            }
+        } else if (gameState.gameState.inLobby) {
+            setCurrentScreen('lobby');
+        } else if (gameState.gameState.gameStarted && gameState.gameState.roundNumber > (gameState.gameState.maxRounds || 0)) {
+            setCurrentScreen('gameEnd');
+        } else if (gameState.gameState.gameStarted && !gameState.gameState.inLobby) {
+            setCurrentScreen('game');
+        } else {
+            if (!isLoginPhaseRef.current) {
+                setCurrentScreen('login');
+            }
+        }
+    }, [gameState, playerId, isHost]);
+
+    useEffect(() => {
+        if (!playerId) {
+            return;
+        }
+        const playerRef = dbRef(db, `players/${playerId}`);
+        onDisconnect(playerRef).remove().catch(err => console.error("Failed to set onDisconnect: ", err));
+        if (heartbeatIntervalRef.current) {
+            clearInterval(heartbeatIntervalRef.current);
+        }
+        heartbeatIntervalRef.current = setInterval(() => {
+            set(dbRef(db, `players/${playerId}/heartbeat`), Date.now());
+        }, 2000);
+        return () => {
+            if (heartbeatIntervalRef.current) {
+                clearInterval(heartbeatIntervalRef.current);
+            }
+            onDisconnect(playerRef).cancel();
+        };
+    }, [playerId]);
+
+    useEffect(() => {
+        if (!isHost || !gameState?.gameState?.gameStarted) return;
+        const timeLeftRef = dbRef(db, 'game/timeLeft');
+        if (timerIntervalRef.current) {
+            clearInterval(timerIntervalRef.current);
+        }
+        timerIntervalRef.current = setInterval(async () => {
+            const snapshot = await get(timeLeftRef);
+            const currentLeft = snapshot.val();
+            if (currentLeft > 0) {
+                await set(timeLeftRef, currentLeft - 1);
+            } else if (currentLeft === 0) {
+                clearInterval(timerIntervalRef.current);
+                timerIntervalRef.current = null;
+                nextRound();
+            }
+        }, 1000);
+        return () => {
+            if (timerIntervalRef.current) {
+                clearInterval(timerIntervalRef.current);
+            }
+        };
+    }, [isHost, gameState, nextRound]);
+    
+    // RENDER LOKACIJA
     if (error) {
         return (
             <div className="container">
@@ -305,7 +276,6 @@ function App() {
             </div>
         );
     }
-
     switch (currentScreen) {
         case 'login':
             return <LoginScreen onLogin={handleLogin} />;
@@ -339,5 +309,4 @@ function App() {
             return <LoginScreen onLogin={handleLogin} />;
     }
 }
-
 export default App;
