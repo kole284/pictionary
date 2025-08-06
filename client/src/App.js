@@ -31,18 +31,23 @@ function App() {
         await set(dbRef(db, `players/${playerId}/heartbeat`), Date.now());
         console.log(`Heartbeat sent for player: ${playerId}`);
         
-        // Get game state
-        onValue(dbRef(db, 'gameState'), (snapshot) => {
-          const state = snapshot.val();
-          console.log('Received new gameState:', state);
-          setGameState(state);
+        // Slušaj ceo koren baze podataka
+        onValue(dbRef(db, '/'), (snapshot) => {
+          const data = snapshot.val();
+          console.log('Received new state from root:', data);
+          
+          // Proveri da li podaci postoje pre nego što se ažurira stanje
+          if (data) {
+              setGameState(data);
 
-          if (state && state.gameStarted && !state.inLobby) {
-            console.log('GameState indicates game has started. Changing screen to game.');
-            setCurrentScreen('game');
-          } else if (state && state.inLobby) {
-            console.log('GameState indicates game is in lobby. Changing screen to lobby.');
-            setCurrentScreen('lobby');
+              // Proveri da li se ekran treba prebaciti
+              if (data.gameState?.gameStarted && !data.gameState?.inLobby) {
+                console.log('GameState indicates game has started. Changing screen to game.');
+                setCurrentScreen('game');
+              } else if (data.gameState?.inLobby) {
+                console.log('GameState indicates game is in lobby. Changing screen to lobby.');
+                setCurrentScreen('lobby');
+              }
           }
         });
       } catch (error) {
@@ -94,7 +99,7 @@ function App() {
         const newPlayerRef = push(dbRef(db, 'players'));
         const playerId = newPlayerRef.key;
         console.log(`Generated new playerId: ${playerId}`);
-        await set(newPlayerRef, { name: name, playerId: playerId });
+        await set(newPlayerRef, { name: name, playerId: playerId, points: 0 });
         console.log(`Player data saved to database for playerId: ${playerId}`);
         setPlayerId(playerId);
         setPlayerName(name);
@@ -125,7 +130,7 @@ function App() {
     if (playerId) {
       try {
         console.log('Updating gameState to start game.');
-        await update(dbRef(db, 'gameState'), { gameStarted: true });
+        await update(dbRef(db, 'gameState'), { gameStarted: true, inLobby: false });
         console.log('Game start request sent.');
       } catch (error) {
         console.error('Failed to start game:', error);
@@ -178,9 +183,10 @@ function App() {
     case 'lobby':
       return (
         <Lobby
+          // Sada se lista igrača nalazi u 'gameState.players' objektu
           players={gameState?.players ? Object.values(gameState.players) : []}
           onStartGame={handleStartGame}
-          isHost={gameState?.host === playerId}
+          isHost={gameState?.gameState?.host === playerId}
         />
       );
     case 'game':
