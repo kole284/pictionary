@@ -1,3 +1,4 @@
+// App.js
 import React, { useState, useEffect } from 'react';
 import LoginScreen from './components/LoginScreen';
 import Lobby from './components/Lobby';
@@ -31,16 +32,13 @@ function App() {
         await set(dbRef(db, `players/${playerId}/heartbeat`), Date.now());
         console.log(`Heartbeat sent for player: ${playerId}`);
         
-        // Slušaj ceo koren baze podataka
         onValue(dbRef(db, '/'), (snapshot) => {
           const data = snapshot.val();
           console.log('Received new state from root:', data);
           
-          // Proveri da li podaci postoje pre nego što se ažurira stanje
           if (data) {
               setGameState(data);
 
-              // Proveri da li se ekran treba prebaciti
               if (data.gameState?.gameStarted && !data.gameState?.inLobby) {
                 console.log('GameState indicates game has started. Changing screen to game.');
                 setCurrentScreen('game');
@@ -64,6 +62,7 @@ function App() {
   }, [playerId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Cleanup inactive players every 10 seconds
+  // Ovaj deo koda je već u redu
   useEffect(() => {
     if (!playerId) return;
     
@@ -85,7 +84,6 @@ function App() {
     return () => {
       if (playerId) {
         console.log(`Player ${playerId} is leaving. Removing from database.`);
-        // Send leave game request when component unmounts
         remove(dbRef(db, `players/${playerId}`));
       }
     };
@@ -103,7 +101,7 @@ function App() {
         console.log(`Player data saved to database for playerId: ${playerId}`);
         setPlayerId(playerId);
         setPlayerName(name);
-        setGameState(null); // Game state will be fetched on heartbeat
+        setGameState(null);
         setCurrentScreen('loading');
         console.log('Login successful. Current screen: loading.');
       } catch (error) {
@@ -118,7 +116,6 @@ function App() {
   const handleServerFound = (url) => {
     console.log(`Server found: ${url}. Resetting state.`);
     setServerUrl(url);
-    // Reset player state when connecting to new server
     setPlayerId(null);
     setPlayerName('');
     setGameState(null);
@@ -129,8 +126,18 @@ function App() {
     console.log(`Player ${playerId} attempting to start game.`);
     if (playerId) {
       try {
-        console.log('Updating gameState to start game.');
-        await update(dbRef(db, 'gameState'), { gameStarted: true, inLobby: false });
+        console.log('Updating gameState to start game and removing old players.');
+        // Čišćenje pre započinjanja nove igre
+        await update(dbRef(db, '/'), {
+          gameState: {
+            gameStarted: true, 
+            inLobby: false,
+            roundNumber: 1,
+            host: playerId
+          },
+          // Brisanje svih prethodnih igrača i pokretanje nove sesije
+          players: {} 
+        });
         console.log('Game start request sent.');
       } catch (error) {
         console.error('Failed to start game:', error);
@@ -141,11 +148,10 @@ function App() {
 
   const handlePlayAgain = async () => {
     console.log(`Player ${playerId} wants to play again.`);
-    // Leave current game
     if (playerId) {
       try {
         console.log(`Removing player ${playerId} from database.`);
-        await remove(dbRef(db, `players/${playerId}`));
+        remove(dbRef(db, `players/${playerId}`));
       } catch (error) {
         console.error('Failed to leave game:', error);
       }
@@ -183,7 +189,6 @@ function App() {
     case 'lobby':
       return (
         <Lobby
-          // Sada se lista igrača nalazi u 'gameState.players' objektu
           players={gameState?.players ? Object.values(gameState.players) : []}
           onStartGame={handleStartGame}
           isHost={gameState?.gameState?.host === playerId}
