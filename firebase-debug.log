@@ -1,0 +1,37 @@
+[debug] [2025-08-06T10:33:52.913Z] ----------------------------------------------------------------------
+[debug] [2025-08-06T10:33:52.940Z] Command:       /home/kole/.nvm/versions/node/v24.0.2/bin/node /home/kole/.nvm/versions/node/v24.0.2/bin/firebase database:set /gameState {"inLobby":true,"gameStarted":false,"roundNumber":0,"host":null,"players":{}} --project pictionary-b38c4 --force
+[debug] [2025-08-06T10:33:52.944Z] CLI Version:   14.11.2
+[debug] [2025-08-06T10:33:52.945Z] Platform:      linux
+[debug] [2025-08-06T10:33:52.946Z] Node Version:  v24.0.2
+[debug] [2025-08-06T10:33:52.948Z] Time:          Wed Aug 06 2025 12:33:52 GMT+0200 (Central European Summer Time)
+[debug] [2025-08-06T10:33:52.950Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-08-06T10:33:53.825Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-08-06T10:33:53.828Z] > authorizing via signed-in user (nikolampek04@gmail.com)
+[debug] [2025-08-06T10:33:53.829Z] [iam] checking project pictionary-b38c4 for permissions ["firebase.projects.get","firebasedatabase.instances.update"]
+[debug] [2025-08-06T10:33:53.837Z] Checked if tokens are valid: false, expires at: 1754475208806
+[debug] [2025-08-06T10:33:53.837Z] Checked if tokens are valid: false, expires at: 1754475208806
+[debug] [2025-08-06T10:33:53.838Z] > refreshing access token with scopes: []
+[debug] [2025-08-06T10:33:53.852Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2025-08-06T10:33:53.852Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-08-06T10:33:54.220Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2025-08-06T10:33:54.220Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-08-06T10:33:54.227Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/pictionary-b38c4:testIamPermissions [none]
+[debug] [2025-08-06T10:33:54.227Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/pictionary-b38c4:testIamPermissions x-goog-quota-user=projects/pictionary-b38c4
+[debug] [2025-08-06T10:33:54.228Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/pictionary-b38c4:testIamPermissions {"permissions":["firebase.projects.get","firebasedatabase.instances.update"]}
+[debug] [2025-08-06T10:33:55.135Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/pictionary-b38c4:testIamPermissions 200
+[debug] [2025-08-06T10:33:55.135Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/pictionary-b38c4:testIamPermissions {"permissions":["firebase.projects.get","firebasedatabase.instances.update"]}
+[debug] [2025-08-06T10:33:55.136Z] Checked if tokens are valid: true, expires at: 1754480033221
+[debug] [2025-08-06T10:33:55.136Z] Checked if tokens are valid: true, expires at: 1754480033221
+[debug] [2025-08-06T10:33:55.137Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/pictionary-b38c4 [none]
+[debug] [2025-08-06T10:33:55.485Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/pictionary-b38c4 200
+[debug] [2025-08-06T10:33:55.486Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/pictionary-b38c4 {"projectId":"pictionary-b38c4","projectNumber":"313679665716","displayName":"Pictionary","name":"projects/pictionary-b38c4","resources":{"hostingSite":"pictionary-b38c4","realtimeDatabaseInstance":"pictionary-b38c4-default-rtdb"},"state":"ACTIVE","etag":"1_99175f5a-8ab8-4fae-869b-1a720749eb3f"}
+[debug] [2025-08-06T10:33:55.488Z] Checked if tokens are valid: true, expires at: 1754480033221
+[debug] [2025-08-06T10:33:55.488Z] Checked if tokens are valid: true, expires at: 1754480033221
+[debug] [2025-08-06T10:33:55.489Z] >>> [apiv2][query] GET https://firebasedatabase.googleapis.com/v1beta/projects/pictionary-b38c4/locations/-/instances/pictionary-b38c4-default-rtdb [none]
+[debug] [2025-08-06T10:33:56.545Z] <<< [apiv2][status] GET https://firebasedatabase.googleapis.com/v1beta/projects/pictionary-b38c4/locations/-/instances/pictionary-b38c4-default-rtdb 200
+[debug] [2025-08-06T10:33:56.546Z] <<< [apiv2][body] GET https://firebasedatabase.googleapis.com/v1beta/projects/pictionary-b38c4/locations/-/instances/pictionary-b38c4-default-rtdb {"name":"projects/313679665716/locations/europe-west1/instances/pictionary-b38c4-default-rtdb","project":"projects/313679665716","databaseUrl":"https://pictionary-b38c4-default-rtdb.europe-west1.firebasedatabase.app","type":"DEFAULT_DATABASE","state":"ACTIVE"}
+[debug] [2025-08-06T10:33:56.552Z] Checked if tokens are valid: true, expires at: 1754480033221
+[debug] [2025-08-06T10:33:56.553Z] Checked if tokens are valid: true, expires at: 1754480033221
+[debug] [2025-08-06T10:33:56.554Z] >>> [apiv2][query] PUT https://pictionary-b38c4-default-rtdb.europe-west1.firebasedatabase.app/gameState.json 
+[debug] [2025-08-06T10:33:56.554Z] >>> [apiv2][body] PUT https://pictionary-b38c4-default-rtdb.europe-west1.firebasedatabase.app/gameState.json [stream]

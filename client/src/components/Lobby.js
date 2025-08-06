@@ -5,18 +5,20 @@ import { db } from '../firebase';
 const Lobby = ({ players, onStartGame, isHost }) => {
   const minPlayers = 2;
   const canStart = players.length >= minPlayers;
-  const [gameState, setGameState] = useState(null);
-  const [playersList, setPlayers] = useState({});
+  // Ne treba ti stanje za gameState i players u Lobby komponenti
+  // const [gameState, setGameState] = useState(null);
+  // const [playersList, setPlayers] = useState({});
 
-  useEffect(() => {
-    const unsubGame = onValue(dbRef(db, 'gameState'), (snapshot) => {
-      setGameState(snapshot.val());
-    });
-    const unsubPlayers = onValue(dbRef(db, 'players'), (snapshot) => {
-      setPlayers(snapshot.val() || {});
-    });
-    return () => { unsubGame(); unsubPlayers(); };
-  }, []);
+  // Ne treba ti ovaj useEffect, jer App komponenta već prosleđuje podatke kao props
+  // useEffect(() => {
+  //  const unsubGame = onValue(dbRef(db, 'gameState'), (snapshot) => {
+  //    setGameState(snapshot.val());
+  //  });
+  //  const unsubPlayers = onValue(dbRef(db, 'players'), (snapshot) => {
+  //    setPlayers(snapshot.val() || {});
+  //  });
+  //  return () => { unsubGame(); unsubPlayers(); };
+  // }, []);
 
   return (
     <div className="lobby">
@@ -52,7 +54,7 @@ const Lobby = ({ players, onStartGame, isHost }) => {
           </div>
 
           {canStart && isHost && (
-            <button 
+            <button
               className="start-game-btn"
               onClick={onStartGame}
             >
@@ -77,4 +79,4 @@ const Lobby = ({ players, onStartGame, isHost }) => {
   );
 };
 
-export default Lobby; 
+export default Lobby;
