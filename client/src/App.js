@@ -23,6 +23,13 @@ function App() {
         const playersSnapshot = await get(dbRef(db, 'players'));
         const playersData = playersSnapshot.val();
 
+        // Dodajemo provjeru da li je pogođena reč, da ne bi prerano obrisali igru.
+        const correctGuessSnapshot = await get(dbRef(db, 'game/correctGuess'));
+        if (correctGuessSnapshot.exists()) {
+            console.log('cleanupGame: Correct guess exists. Aborting cleanup.');
+            return;
+        }
+
         if (!playersData || Object.keys(playersData).length === 0) {
             console.log('cleanupGame: No players left. Deleting game state from database.');
             await remove(dbRef(db, 'gameState'));
@@ -61,6 +68,14 @@ function App() {
 
     const nextRound = useCallback(async () => {
         if (!isHost) return;
+        
+        // Dodajemo provjeru da li je stanje igre i dalje validno pre nego što nastavimo
+        const currentGameStateSnapshot = await get(dbRef(db, 'gameState'));
+        if (!currentGameStateSnapshot.exists()) {
+            console.log('nextRound: Game state no longer exists. Aborting.');
+            return;
+        }
+        
         console.log('nextRound: Executing new round logic.');
         
         const playersSnapshot = await get(dbRef(db, 'players'));
@@ -166,10 +181,14 @@ function App() {
 
             if (currentIsHost) {
                 const now = Date.now();
-                for (const id in data.players) {
-                    if (now - data.players[id].heartbeat > 15000) {
-                        console.log(`Player ${data.players[id].name} (${id}) is inactive. Removing.`);
-                        await remove(dbRef(db, `players/${id}`));
+                
+                // Dodajemo provjeru da ne brišemo igrače ako je runda u toku i reč je pogođena
+                if (!data.game?.correctGuess) {
+                    for (const id in data.players) {
+                        if (now - data.players[id].heartbeat > 15000) {
+                            console.log(`Player ${data.players[id].name} (${id}) is inactive. Removing.`);
+                            await remove(dbRef(db, `players/${id}`));
+                        }
                     }
                 }
                 
