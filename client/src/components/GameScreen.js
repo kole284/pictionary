@@ -4,7 +4,7 @@ import Chat from './Chat';
 import PlayerList from './PlayerList';
 import Timer from './Timer';
 import { db } from '../firebase';
-import { ref as dbRef, onValue, set, push } from 'firebase/database';
+import { ref as dbRef, onValue, set, push, update, get } from 'firebase/database';
 
 const GameScreen = ({ playerId, playerName, gameState }) => {
   const [currentWord, setCurrentWord] = useState('');
@@ -15,13 +15,7 @@ const GameScreen = ({ playerId, playerName, gameState }) => {
   useEffect(() => {
     const drawingRef = dbRef(db, 'game/drawingHistory');
     const chatRef = dbRef(db, 'game/chatMessages');
-    const timerRef = dbRef(db, 'game/timeLeft');
-    const unsubTimers = onValue(timerRef, (snapshot) => {
-      const timeLeft = snapshot.val();
-      if (timeLeft === 0 && gameState?.gameState?.host === playerId) {
-        // Logika za prelazak na sledećeg crtača kada istekne tajmer
-      }
-    });
+    const correctGuessRef = dbRef(db, 'game/correctGuess');
 
     const unsubDrawing = onValue(drawingRef, (snapshot) => {
       const history = snapshot.val() || [];
@@ -31,6 +25,10 @@ const GameScreen = ({ playerId, playerName, gameState }) => {
     const unsubChat = onValue(chatRef, (snapshot) => {
       const chatMsgs = snapshot.val() || [];
       setMessages(Object.values(chatMsgs));
+    });
+    
+    const unsubCorrectGuess = onValue(correctGuessRef, (snapshot) => {
+      setCorrectGuess(snapshot.val());
     });
 
     let unsubWord;
@@ -45,22 +43,62 @@ const GameScreen = ({ playerId, playerName, gameState }) => {
     return () => {
       unsubDrawing();
       unsubChat();
-      unsubTimers();
+      unsubCorrectGuess();
       if (unsubWord) {
         unsubWord();
       }
     };
-  }, [playerId, gameState?.gameState?.currentDrawer, gameState?.gameState?.host]);
+  }, [playerId, gameState?.gameState?.currentDrawer]);
 
-  const handleSendMessage = (message) => {
+  const handleSendMessage = async (message) => {
     if (message.trim()) {
       const newMessageRef = push(dbRef(db, 'game/chatMessages'));
-      set(newMessageRef, {
+      await set(newMessageRef, {
         player: playerName,
         message: message.trim(),
         timestamp: new Date().toLocaleTimeString(),
         isSystem: false,
       });
+
+      // Provera da li je poruka tačan odgovor
+      const currentDrawerId = gameState.gameState.currentDrawer;
+      const wordSnapshot = await get(dbRef(db, `game/drawingWords/${currentDrawerId}`));
+      const wordToGuess = wordSnapshot.val();
+
+      if (message.toLowerCase() === wordToGuess.toLowerCase()) {
+        const correctGuessRef = dbRef(db, 'game/correctGuess');
+        const correctGuessSnapshot = await get(correctGuessRef);
+
+        // Boduje se samo prvi tačan pogodak
+        if (!correctGuessSnapshot.val()) {
+          const points = 10;
+          await update(dbRef(db, `players/${playerId}`), {
+            points: (gameState.players[playerId].points || 0) + points,
+          });
+
+          // Bodovanje crtača
+          const drawingPlayerPoints = 5;
+          await update(dbRef(db, `players/${currentDrawerId}`), {
+            points: (gameState.players[currentDrawerId].points || 0) + drawingPlayerPoints,
+          });
+
+          await set(correctGuessRef, {
+            player: playerName,
+            playerId: playerId,
+            word: wordToGuess
+          });
+
+          // Prikaz sistemske poruke u chatu
+          const systemMessageRef = push(dbRef(db, 'game/chatMessages'));
+          await set(systemMessageRef, {
+            player: '📢',
+            message: `${playerName} je pogodio! Reč je bila "${wordToGuess}".`,
+            timestamp: new Date().toLocaleTimeString(),
+            isSystem: true,
+            isCorrectGuess: true,
+          });
+        }
+      }
     }
   };
 

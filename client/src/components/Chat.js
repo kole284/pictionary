@@ -70,13 +70,13 @@ const Chat = ({ messages, onSendMessage, isDrawing, correctGuess }) => {
           placeholder={isDrawing ? "Ti crtaš!" : "Unesite svoju reč..."}
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          disabled={isDrawing}
+          disabled={isDrawing || correctGuess !== null} // Onemogući chat nakon tačnog pogotka
           maxLength={50}
         />
         <button
           type="submit"
           className="btn"
-          disabled={isDrawing || !message.trim()}
+          disabled={isDrawing || !message.trim() || correctGuess !== null}
           style={{ padding: '12px 16px' }}
         >
           Send
@@ -100,4 +100,4 @@ const Chat = ({ messages, onSendMessage, isDrawing, correctGuess }) => {
   );
 };
 
-export default Chat; 
+export default Chat;

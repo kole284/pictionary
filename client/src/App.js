@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import LoginScreen from './components/LoginScreen';
 import Lobby from './components/Lobby';
 import GameScreen from './components/GameScreen';
@@ -13,10 +13,80 @@ function App() {
   const [currentScreen, setCurrentScreen] = useState('login');
   const [error, setError] = useState('');
   const [isHost, setIsHost] = useState(false);
+  const timerIntervalRef = useRef(null); // Koristimo useRef za čuvanje intervala
+
+  const words = ["jabuka", "sto", "kuća", "drvo", "lopta", "kompjuter", "telefon", "voda", "sunce"];
+
+  const nextRound = async () => {
+    if (!isHost) return;
+
+    const playersSnapshot = await get(dbRef(db, 'players'));
+    const playersData = playersSnapshot.val();
+    const playerIds = Object.keys(playersData);
+    const currentRound = (await get(dbRef(db, 'gameState/roundNumber'))).val() || 0;
+    const currentDrawerId = (await get(dbRef(db, 'gameState/currentDrawer'))).val();
+
+    if (currentRound >= playerIds.length) {
+      // Kraj igre
+      await update(dbRef(db, 'gameState'), { gameStarted: false, inLobby: false });
+      return;
+    }
+
+    const nextDrawerIndex = (playerIds.indexOf(currentDrawerId) + 1) % playerIds.length;
+    const nextDrawerId = playerIds[nextDrawerIndex];
+    const newWord = words[Math.floor(Math.random() * words.length)];
+
+    await set(dbRef(db, 'game/drawingHistory'), null);
+    await set(dbRef(db, 'game/chatMessages'), null);
+    await set(dbRef(db, 'game/correctGuess'), null);
+    await set(dbRef(db, `game/drawingWords`), { [nextDrawerId]: newWord });
+    
+    await update(dbRef(db, 'gameState'), {
+      currentDrawer: nextDrawerId,
+      roundNumber: currentRound + 1,
+    });
+
+    const roundDuration = 60;
+    await set(dbRef(db, 'game/timeLeft'), roundDuration);
+  };
+  
+  // Hostova logika za odbrojavanje i prelazak na sledeću rundu
+  useEffect(() => {
+    if (isHost && currentScreen === 'game') {
+      const timerRef = dbRef(db, 'game/timeLeft');
+      
+      const setupTimer = async () => {
+        if (timerIntervalRef.current) {
+          clearInterval(timerIntervalRef.current);
+        }
+        
+        const interval = setInterval(async () => {
+          const timeLeftSnapshot = await get(timerRef);
+          const timeLeft = timeLeftSnapshot.val();
+          
+          if (timeLeft > 0) {
+            await set(timerRef, timeLeft - 1);
+          } else {
+            clearInterval(interval);
+            timerIntervalRef.current = null;
+            await nextRound();
+          }
+        }, 1000);
+        
+        timerIntervalRef.current = interval;
+      };
+      setupTimer();
+      
+      return () => {
+        if (timerIntervalRef.current) {
+          clearInterval(timerIntervalRef.current);
+        }
+      };
+    }
+  }, [isHost, currentScreen]);
 
   useEffect(() => {
     if (!playerId) {
-      console.log('useEffect - No playerId, skipping listener setup.');
       return;
     }
 
@@ -88,8 +158,9 @@ function App() {
     if (isHost && gameState?.players) {
       try {
         const playerIds = Object.keys(gameState.players);
-        const words = ["jabuka", "sto", "kuća", "drvo", "lopta", "kompjuter", "telefon", "voda", "sunce"];
-        
+        const firstWord = words[Math.floor(Math.random() * words.length)];
+        const roundDuration = 60;
+
         await update(dbRef(db, 'gameState'), {
           gameStarted: true,
           inLobby: false,
@@ -98,25 +169,10 @@ function App() {
           maxRounds: playerIds.length,
         });
 
-        const firstWord = words[Math.floor(Math.random() * words.length)];
         await set(dbRef(db, 'game/drawingWords'), { [playerIds[0]]: firstWord });
-
-        const roundDuration = 60; // 60 sekundi
         await set(dbRef(db, 'game/timeLeft'), roundDuration);
-
-        // Odbrojavanje tajmera
-        const timerRef = dbRef(db, 'game/timeLeft');
-        const timerInterval = setInterval(async () => {
-          const timeLeftSnapshot = await get(timerRef);
-          const timeLeft = timeLeftSnapshot.val();
-          if (timeLeft > 0) {
-            await set(timerRef, timeLeft - 1);
-          } else {
-            clearInterval(timerInterval);
-            // Logika za prelazak na sledeću rundu
-          }
-        }, 1000);
-
+        await set(dbRef(db, 'game/correctGuess'), null);
+        await set(dbRef(db, 'game/chatMessages'), null);
       } catch (error) {
         console.error('Failed to start game:', error);
         setError('Failed to start game. Please try again.');

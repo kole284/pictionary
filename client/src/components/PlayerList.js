@@ -3,37 +3,28 @@ import { ref as dbRef, onValue } from 'firebase/database';
 import { db } from '../firebase';
 
 const PlayerList = ({ players, currentDrawer, playerName }) => {
-  const [playersData, setPlayers] = useState({});
-
-  useEffect(() => {
-    const unsub = onValue(dbRef(db, 'players'), (snapshot) => {
-      setPlayers(snapshot.val() || {});
-    });
-    return () => unsub();
-  }, []);
-
-  const sortedPlayers = [...Object.values(playersData)].sort((a, b) => b.score - a.score);
+  const sortedPlayers = [...players].sort((a, b) => b.points - a.points);
 
   return (
     <div className="player-list">
       <h3 style={{ marginBottom: '15px', color: '#333' }}>👥 Igrači</h3>
       
       {sortedPlayers.map((player) => (
-        <div key={player.id} className="player-item">
+        <div key={player.playerId} className="player-item">
           <div style={{ display: 'flex', alignItems: 'center' }}>
             <span className="player-name">
               {player.name}
-              {player.name === playerName && ' (You)'}
+              {player.name === playerName && ' (Ti)'}
             </span>
-            {player.id === currentDrawer && (
+            {player.playerId === currentDrawer && (
               <span className="current-drawer">🎨 Crta</span>
             )}
           </div>
-          <span className="player-score">{player.score} pts</span>
+          <span className="player-score">{player.points || 0} poena</span>
         </div>
       ))}
       
-      {Object.keys(playersData).length === 0 && (
+      {players.length === 0 && (
         <div style={{ textAlign: 'center', color: '#666', padding: '20px' }}>
           Još nema igrača...
         </div>
@@ -47,12 +38,12 @@ const PlayerList = ({ players, currentDrawer, playerName }) => {
         fontSize: '14px',
         color: '#666'
       }}>
-        <div>🎯 Pogodite tačno: +10 poena</div>
-        <div>🎨 Nacrtajte uspešno: +5 poena</div>
-        <div>⏱️ 90 sekundi po krugu</div>
+        <div>🎯 Tačan pogodak: +10 poena</div>
+        <div>🎨 Uspešno crtanje: +5 poena</div>
+        <div>⏱️ 60 sekundi po krugu</div>
       </div>
     </div>
   );
 };
 
-export default PlayerList; 
+export default PlayerList;
