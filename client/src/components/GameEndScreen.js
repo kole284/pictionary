@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { ref as dbRef, onValue } from 'firebase/database';
 import { db } from '../firebase';
 
-const GameEndScreen = ({ gameState, onPlayAgain }) => {
+const GameEndScreen = ({ onPlayAgain }) => {
   const [players, setPlayers] = useState({});
+  const [gameState, setGameState] = useState(null);
 
   useEffect(() => {
     const unsubGame = onValue(dbRef(db, 'gameState'), (snapshot) => {
