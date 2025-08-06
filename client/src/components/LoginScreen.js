@@ -3,12 +3,13 @@ import LANDiscovery from './LANDiscovery';
 
 const LoginScreen = ({ onLogin, onServerFound }) => {
   const [playerName, setPlayerName] = useState('');
+  const [gameId, setGameId] = useState(''); // Dodato za unos ID-a igre
   const [showLANDiscovery, setShowLANDiscovery] = useState(false);
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (playerName.trim()) {
-      onLogin(playerName.trim());
+      onLogin(playerName.trim(), gameId.trim());
     }
   };
 
@@ -28,11 +29,21 @@ const LoginScreen = ({ onLogin, onServerFound }) => {
           <input
             type="text"
             className="input"
-            placeholder="Enter your name..."
+            placeholder="Unesite svoje ime..."
             value={playerName}
             onChange={(e) => setPlayerName(e.target.value)}
             maxLength={20}
             required
+            style={{ marginBottom: '10px' }}
+          />
+
+          <input
+            type="text"
+            className="input"
+            placeholder="Unesite kod igre (opciono)..."
+            value={gameId}
+            onChange={(e) => setGameId(e.target.value.toUpperCase())}
+            maxLength={5}
             style={{ marginBottom: '20px' }}
           />
           
@@ -42,7 +53,7 @@ const LoginScreen = ({ onLogin, onServerFound }) => {
             style={{ width: '100%' }}
             disabled={!playerName.trim()}
           >
-            Prijavi se
+            {gameId ? 'Pridruži se igri' : 'Napravi novu igru'}
           </button>
         </form>
         
@@ -59,7 +70,7 @@ const LoginScreen = ({ onLogin, onServerFound }) => {
             onClick={() => setShowLANDiscovery(!showLANDiscovery)}
             style={{ marginBottom: '10px' }}
           >
-            {showLANDiscovery ? '🔽 Hide LAN Discovery' : '🌐 Find Local Games'}
+            {showLANDiscovery ? '🔽 Sakrij LAN Discovery' : '🌐 Pronađi lokalne igre'}
           </button>
         </div>
       </div>
@@ -73,4 +84,4 @@ const LoginScreen = ({ onLogin, onServerFound }) => {
   );
 };
 
-export default LoginScreen; 
+export default LoginScreen;
