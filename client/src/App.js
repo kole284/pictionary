@@ -13,7 +13,7 @@ function App() {
     const [currentScreen, setCurrentScreen] = useState('login');
     const [error, setError] = useState('');
     const [isHost, setIsHost] = useState(false);
-    const [gameId, setGameId] = useState(null); // Dodat gameId state
+    const [gameId, setGameId] = useState(null);
     const timerIntervalRef = useRef(null);
     const roundEndTimeoutRef = useRef(null);
     const heartbeatIntervalRef = useRef(null);
@@ -21,6 +21,7 @@ function App() {
 
     const words = ["jabuka", "sto", "kuća", "drvo", "lopta", "kompjuter", "telefon", "voda", "sunce"];
 
+    // Funkcija koja se poziva da se obriše igra ako nema igrača
     const cleanupGame = useCallback(async () => {
         if (!gameId) return;
         const playersSnapshot = await get(dbRef(db, `games/${gameId}/players`));
@@ -30,6 +31,7 @@ function App() {
         }
     }, [gameId]);
 
+    // Funkcija koja pokreće sledeću rundu
     const nextRound = useCallback(async () => {
         if (!isHost || !gameId) return;
         const playersSnapshot = await get(dbRef(db, `games/${gameId}/players`));
@@ -38,26 +40,31 @@ function App() {
             await cleanupGame();
             return;
         }
+
         const playerIds = Object.keys(playersData);
         const currentRound = (await get(dbRef(db, `games/${gameId}/gameState/roundNumber`))).val() || 0;
-        if (currentRound >= playerIds.length) {
+        const maxRounds = (await get(dbRef(db, `games/${gameId}/gameState/maxRounds`))).val() || 0;
+
+        // Provera da li je igra gotova
+        if (currentRound >= maxRounds) {
             const finalScores = Object.values(playersData).sort((a, b) => b.points - a.points);
             const winner = finalScores[0];
             await update(dbRef(db, `games/${gameId}/gameState`), {
                 gameStarted: false,
                 inLobby: false,
                 currentDrawer: null,
-                roundNumber: currentRound + 1,
                 winner: { name: winner.name, score: winner.points },
                 finalScores: finalScores,
             });
             await remove(dbRef(db, `games/${gameId}/game`));
             return;
         }
+
         const currentDrawerId = (await get(dbRef(db, `games/${gameId}/gameState/currentDrawer`))).val();
         const nextDrawerIndex = (playerIds.indexOf(currentDrawerId) + 1) % playerIds.length;
         const nextDrawerId = playerIds[nextDrawerIndex];
         const newWord = words[Math.floor(Math.random() * words.length)];
+        
         await set(dbRef(db, `games/${gameId}/game/drawingHistory`), null);
         await set(dbRef(db, `games/${gameId}/game/chatMessages`), null);
         await set(dbRef(db, `games/${gameId}/game/correctGuess`), null);
@@ -66,10 +73,12 @@ function App() {
             currentDrawer: nextDrawerId,
             roundNumber: currentRound + 1,
         });
+
         const roundDuration = 60;
         await set(dbRef(db, `games/${gameId}/game/timeLeft`), roundDuration);
     }, [isHost, words, cleanupGame, gameId]);
 
+    // Funkcija za resetovanje stanja klijenta i povratak na početni ekran
     const resetClientState = () => {
         setGameState(null);
         setPlayerId(null);
@@ -77,30 +86,23 @@ function App() {
         setCurrentScreen('login');
         setError('');
         setIsHost(false);
-        setGameId(null); // Resetuj i gameId
-        if (timerIntervalRef.current) {
-            clearInterval(timerIntervalRef.current);
-            timerIntervalRef.current = null;
-        }
-        if (roundEndTimeoutRef.current) {
-            clearTimeout(roundEndTimeoutRef.current);
-            roundEndTimeoutRef.current = null;
-        }
-        if (heartbeatIntervalRef.current) {
-            clearInterval(heartbeatIntervalRef.current);
-            heartbeatIntervalRef.current = null;
-        }
+        setGameId(null);
+        if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+        if (roundEndTimeoutRef.current) clearTimeout(roundEndTimeoutRef.current);
+        if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
     };
 
+    // Funkcija za prijavu i kreiranje/pridruživanje igri
     const handleLogin = async (name, gameIdToJoin) => {
         if (!name.trim()) return;
         try {
             isLoginPhaseRef.current = true;
             let finalGameId = gameIdToJoin;
+            let isNewGame = false;
+            
             if (!gameIdToJoin) {
-                // Kreiraj novu igru ako ID nije unesen
                 const newGameRef = push(dbRef(db, 'games'));
-                finalGameId = newGameRef.key.substring(1, 5).toUpperCase(); // Skraćeni, čitljivi ID
+                finalGameId = newGameRef.key.substring(1, 5).toUpperCase();
                 await set(dbRef(db, `games/${finalGameId}`), {
                     players: {},
                     gameState: {
@@ -112,6 +114,7 @@ function App() {
                     },
                     game: {},
                 });
+                isNewGame = true;
             } else {
                 const gameSnapshot = await get(dbRef(db, `games/${finalGameId}`));
                 if (!gameSnapshot.exists()) {
@@ -119,7 +122,7 @@ function App() {
                     return;
                 }
             }
-            
+
             const playersRef = dbRef(db, `games/${finalGameId}/players`);
             const newPlayerRef = push(playersRef);
             const newPlayerId = newPlayerRef.key;
@@ -129,11 +132,8 @@ function App() {
                 points: 0,
                 heartbeat: Date.now(),
             });
-            
-            const playersSnapshot = await get(playersRef);
-            const playersData = playersSnapshot.val();
 
-            if (!playersData || Object.keys(playersData).length === 1) {
+            if (isNewGame) {
                 await update(dbRef(db, `games/${finalGameId}/gameState`), { host: newPlayerId });
             }
 
@@ -149,10 +149,15 @@ function App() {
         }
     };
     
+    // Funkcija za početak igre (samo za hosta)
     const handleStartGame = async () => {
         if (isHost && gameState?.players) {
             try {
                 const playerIds = Object.keys(gameState.players);
+                if (playerIds.length < 2) {
+                    setError('Potrebna su najmanje 2 igrača za početak igre.');
+                    return;
+                }
                 const firstWord = words[Math.floor(Math.random() * words.length)];
                 const roundDuration = 60;
                 await update(dbRef(db, `games/${gameId}/gameState`), {
@@ -160,7 +165,7 @@ function App() {
                     inLobby: false,
                     currentDrawer: playerIds[0],
                     roundNumber: 1,
-                    maxRounds: playerIds.length,
+                    maxRounds: playerIds.length * 2, // Svaki igrač crta po 2 puta
                 });
                 await set(dbRef(db, `games/${gameId}/game/drawingWords`), { [playerIds[0]]: firstWord });
                 await set(dbRef(db, `games/${gameId}/game/timeLeft`), roundDuration);
@@ -168,86 +173,82 @@ function App() {
                 await set(dbRef(db, `games/${gameId}/game/chatMessages`), null);
             } catch (error) {
                 console.error('Failed to start game:', error);
-                setError('Failed to start game. Please try again.');
+                setError('Neuspešno pokretanje igre. Pokušajte ponovo.');
             }
         }
     };
 
+    // Funkcija za ponovni ulazak u igru (nakon završetka)
     const handlePlayAgain = async () => {
         if (playerId) {
             await remove(dbRef(db, `games/${gameId}/players/${playerId}`));
         }
-        setPlayerId(null);
-        setPlayerName('');
-        setCurrentScreen('login');
-        setGameState(null);
-        setError('');
-        setGameId(null); // Dodatno resetovanje gameId-a
         await cleanupGame();
+        resetClientState();
     };
 
+    // Učitavanje stanja igre iz baze
     useEffect(() => {
         if (!gameId) {
             resetClientState();
             return;
         }
-        const unsubGameState = onValue(dbRef(db, `games/${gameId}/gameState`), (snapshot) => {
+        const unsubGameState = onValue(dbRef(db, `games/${gameId}`), (snapshot) => {
             const data = snapshot.val();
-            setGameState(prev => ({ ...prev, gameState: data }));
-        });
-        const unsubGameData = onValue(dbRef(db, `games/${gameId}/game`), (snapshot) => {
-            const data = snapshot.val();
-            setGameState(prev => ({ ...prev, game: data }));
-        });
-        const unsubPlayers = onValue(dbRef(db, `games/${gameId}/players`), (snapshot) => {
-            const data = snapshot.val();
-            setGameState(prev => ({ ...prev, players: data }));
+            if (data) {
+                setGameState(data);
+            } else {
+                resetClientState(); // Igra je izbrisana iz baze
+            }
         });
         return () => {
             unsubGameState();
-            unsubGameData();
-            unsubPlayers();
         };
     }, [gameId]);
 
+    // Logika za promenu ekrana i tajmer
     useEffect(() => {
-        if (!gameState || !gameState.players) {
+        if (!gameState) {
             if (!isLoginPhaseRef.current) {
-                if (gameState && (!gameState.players || Object.keys(gameState.players).length === 0)) {
-                    cleanupGame();
-                }
+                setCurrentScreen('login');
             }
             return;
         }
+
+        // Postavi da li je igrač host
         const currentIsHost = gameState?.gameState?.host === playerId;
         setIsHost(currentIsHost);
-        if (isHost && gameState.game?.correctGuess && !roundEndTimeoutRef.current) {
+
+        // Prebacivanje ekrana na osnovu stanja igre
+        if (gameState.gameState?.inLobby) {
+            setCurrentScreen('lobby');
+        } else if (gameState.gameState?.gameStarted && gameState.gameState.winner) {
+            setCurrentScreen('gameEnd');
+        } else if (gameState.gameState?.gameStarted) {
+            setCurrentScreen('game');
+        } else if (!isLoginPhaseRef.current) {
+            setCurrentScreen('login');
+        }
+        
+        // Logika za tajmer i prelazak na sledeću rundu
+        if (isHost && gameState?.gameState?.gameStarted && gameState?.game?.timeLeft === 0) {
+            nextRound();
+        }
+
+        // Logika za automatski prelazak kada se pogodi reč
+        if (isHost && gameState?.game?.correctGuess && !roundEndTimeoutRef.current) {
             roundEndTimeoutRef.current = setTimeout(() => {
                 nextRound();
                 clearTimeout(roundEndTimeoutRef.current);
                 roundEndTimeoutRef.current = null;
             }, 5000);
-        } else if (isHost && !gameState.game?.correctGuess && roundEndTimeoutRef.current) {
+        } else if (isHost && !gameState?.game?.correctGuess && roundEndTimeoutRef.current) {
             clearTimeout(roundEndTimeoutRef.current);
             roundEndTimeoutRef.current = null;
         }
-        if (!gameState.gameState) {
-            if (!isLoginPhaseRef.current) {
-                setCurrentScreen('login');
-            }
-        } else if (gameState.gameState.inLobby) {
-            setCurrentScreen('lobby');
-        } else if (gameState.gameState.gameStarted && gameState.gameState.roundNumber > (gameState.gameState.maxRounds || 0)) {
-            setCurrentScreen('gameEnd');
-        } else if (gameState.gameState.gameStarted && !gameState.gameState.inLobby) {
-            setCurrentScreen('game');
-        } else {
-            if (!isLoginPhaseRef.current) {
-                setCurrentScreen('login');
-            }
-        }
-    }, [gameState, playerId, isHost, nextRound, cleanupGame]);
+    }, [gameState, playerId, isHost, nextRound]);
 
+    // Logika za "heartbeat" i uklanjanje igrača pri prekidu veze
     useEffect(() => {
         if (!playerId || !gameId) return;
         const playerRef = dbRef(db, `games/${gameId}/players/${playerId}`);
@@ -265,13 +266,17 @@ function App() {
             onDisconnect(playerRef).cancel();
         };
     }, [playerId, gameId]);
-
+    
+    // Logika za tajmer
     useEffect(() => {
-        if (!isHost || !gameId || !gameState?.gameState?.gameStarted) return;
+        if (!isHost || !gameId || !gameState?.gameState?.gameStarted || gameState.gameState.winner) return;
+
         const timeLeftRef = dbRef(db, `games/${gameId}/game/timeLeft`);
+        
         if (timerIntervalRef.current) {
             clearInterval(timerIntervalRef.current);
         }
+
         timerIntervalRef.current = setInterval(async () => {
             const snapshot = await get(timeLeftRef);
             const currentLeft = snapshot.val();
@@ -280,16 +285,17 @@ function App() {
             } else if (currentLeft === 0) {
                 clearInterval(timerIntervalRef.current);
                 timerIntervalRef.current = null;
-                nextRound();
+                // nextRound() se poziva u prethodnom useEffect-u, kada timeLeft padne na 0
             }
         }, 1000);
+
         return () => {
             if (timerIntervalRef.current) {
                 clearInterval(timerIntervalRef.current);
             }
         };
     }, [isHost, gameId, gameState, nextRound]);
-    
+
     if (error) {
         return (
             <div className="container">
@@ -300,18 +306,20 @@ function App() {
             </div>
         );
     }
+    
+    // Uslovno renderovanje komponenti
     switch (currentScreen) {
         case 'login':
             return <LoginScreen onLogin={handleLogin} />;
         case 'loading':
-            return <div className="loading">Waiting for players...</div>;
+            return <div className="loading">Učitavanje...</div>;
         case 'lobby':
             return (
                 <Lobby
                     players={gameState?.players ? Object.values(gameState.players) : []}
                     onStartGame={handleStartGame}
                     isHost={isHost}
-                    gameId={gameId} // Prosledi gameId u Lobby
+                    gameId={gameId}
                 />
             );
         case 'game':
@@ -321,7 +329,7 @@ function App() {
                     playerName={playerName}
                     gameState={gameState}
                     nextRound={isHost ? nextRound : null}
-                    gameId={gameId} // Prosledi gameId u GameScreen
+                    gameId={gameId}
                 />
             );
         case 'gameEnd':
@@ -335,4 +343,5 @@ function App() {
             return <LoginScreen onLogin={handleLogin} />;
     }
 }
+
 export default App;

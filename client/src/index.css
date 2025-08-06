@@ -602,3 +602,115 @@ code {
   font-size: 14px;
   color: white;
 } 
+/* ... Postojeći CSS ... */
+
+/* Novi layout za GameScreen */
+.game-screen-layout {
+  display: flex;
+  height: 100vh;
+  padding: 20px;
+  gap: 20px;
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar {
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.game-info {
+  text-align: center;
+  color: white;
+  margin-bottom: 20px;
+}
+
+.canvas-section {
+  flex: 1;
+  background: white;
+  border-radius: 15px;
+  padding: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+}
+
+.canvas-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.drawing-word {
+  background: linear-gradient(45deg, #4CAF50, #45a049);
+  color: white;
+  padding: 10px 15px;
+  border-radius: 8px;
+  font-weight: bold;
+}
+
+.guessing-message {
+  background: #2196F3;
+  color: white;
+  padding: 10px 15px;
+  border-radius: 8px;
+  font-weight: bold;
+}
+
+/* Prilagođavanje za PlayerList i Chat */
+.player-list {
+  background: white;
+  border-radius: 15px;
+  padding: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  /* Osigurava da lista igrača zauzme fiksni deo, a ne da se širi */
+}
+
+.chat-container {
+  background: white;
+  border-radius: 15px;
+  padding: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  flex: 1; /* Da zauzme preostali prostor u sidebar-u */
+  display: flex;
+  flex-direction: column;
+}
+
+/* Rešavanje skrolovanja za Chat poruke */
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  margin-bottom: 15px;
+  padding: 10px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  /* Da bi se poruke skrolovale unutar kontejnera */
+}
+
+/* Media query za mobilne uređaje */
+@media (max-width: 768px) {
+  .game-screen-layout {
+    flex-direction: column;
+    height: auto;
+    overflow-y: auto;
+  }
+  
+  .sidebar {
+    width: 100%;
+  }
+
+  .canvas-section {
+    height: auto; /* Prilagodi visinu automatski */
+  }
+
+  .chat-container {
+    height: 300px; /* Fiksna visina za chat na mobilnim */
+  }
+}

@@ -6,7 +6,8 @@ import Timer from './Timer';
 import { db } from '../firebase';
 import { ref as dbRef, onValue, set, push, update, get } from 'firebase/database';
 
-const GameScreen = memo(({ playerId, playerName, gameState, nextRound, gameId }) => { // Dodat gameId
+// Dodat onGameEnd u props, kako bi se signaliziralo App.js-u da je igra gotova
+const GameScreen = memo(({ playerId, playerName, gameState, nextRound, gameId, onGameEnd }) => {
     const [currentWord, setCurrentWord] = useState('');
     const [messages, setMessages] = useState([]);
     const [drawingHistory, setDrawingHistory] = useState([]);
@@ -44,6 +45,14 @@ const GameScreen = memo(({ playerId, playerName, gameState, nextRound, gameId })
                 setCurrentWord(word || '');
             });
         }
+        
+        // --- LOGIKA ZA KRAJ IGRE ---
+        // Provera da li je igra završena (npr. prošli su svi krugovi)
+        // Ako je trenutna runda veća od maksimalnog broja rundi, igra je gotova.
+        if (gameState.gameState.roundNumber > gameState.gameState.maxRounds) {
+            // Poziva funkciju iz App.js da prebaci na GameEndScreen
+            onGameEnd();
+        }
 
         return () => {
             unsubDrawing();
@@ -53,7 +62,7 @@ const GameScreen = memo(({ playerId, playerName, gameState, nextRound, gameId })
                 unsubWord();
             }
         };
-    }, [playerId, gameState, gameId]);
+    }, [playerId, gameState, gameId, onGameEnd]);
 
     const handleSendMessage = async (message) => {
         if (!gameId) return;
@@ -121,55 +130,47 @@ const GameScreen = memo(({ playerId, playerName, gameState, nextRound, gameId })
     const isDrawing = gameState.gameState.currentDrawer === playerId;
 
     return (
-        <div className="container">
-            <div className="game-info">
-                <h1 className="game-title">🎨 Pictionary</h1>
-                <p className="game-subtitle">
-                    Runda {gameState.gameState.roundNumber} od {gameState.gameState.maxRounds || 5}
-                </p>
-                <p className="game-id">
-                    ID igre: **{gameId}**
-                </p>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '20px' }}>
-                <div>
-                    <div className="canvas-container">
-                        <Timer timeLeft={timeLeft} />
-                        
+        <div className="game-screen-layout">
+            <div className="main-content">
+                <div className="game-info">
+                    <h1 className="game-title">🎨 Pictionary</h1>
+                    <p className="game-subtitle">
+                        Runda {gameState.gameState.roundNumber} od {gameState.gameState.maxRounds || 5}
+                    </p>
+                    <p className="game-id">
+                        ID igre: **{gameId}**
+                    </p>
+                </div>
+                <div className="canvas-section">
+                    <div className="canvas-header">
                         {isDrawing && currentWord && (
-                            <div style={{ background: 'linear-gradient(45deg, #4CAF50, #45a049)', color: 'white', padding: '10px', borderRadius: '8px', marginBottom: '15px', textAlign: 'center', fontWeight: 'bold' }}>
-                                Crtaš: {currentWord}
-                            </div>
+                            <div className="drawing-word">Crtaš: {currentWord}</div>
                         )}
-                        
                         {!isDrawing && gameState.gameState.currentDrawer && (
-                            <div style={{ background: '#2196F3', color: 'white', padding: '10px', borderRadius: '8px', marginBottom: '15px', textAlign: 'center' }}>
-                                Pogodi reč!
-                            </div>
+                            <div className="guessing-message">Pogodi reč!</div>
                         )}
-                        
-                        <DrawingCanvas
-                            isDrawing={isDrawing}
-                            onDraw={handleDraw}
-                            onClear={handleClearCanvas}
-                            drawingHistory={drawingHistory}
-                        />
+                        <Timer timeLeft={timeLeft} />
                     </div>
-                </div>
-                <div>
-                    <PlayerList 
-                        players={Object.values(gameState.players || {})} 
-                        currentDrawer={gameState.gameState.currentDrawer}
-                        playerName={playerName}
-                    />
-                    
-                    <Chat
-                        messages={messages}
-                        onSendMessage={handleSendMessage}
+                    <DrawingCanvas
                         isDrawing={isDrawing}
-                        correctGuess={correctGuess}
+                        onDraw={handleDraw}
+                        onClear={handleClearCanvas}
+                        drawingHistory={drawingHistory}
                     />
                 </div>
+            </div>
+            <div className="sidebar">
+                <PlayerList 
+                    players={Object.values(gameState.players || {})} 
+                    currentDrawer={gameState.gameState.currentDrawer}
+                    playerName={playerName}
+                />
+                <Chat
+                    messages={messages}
+                    onSendMessage={handleSendMessage}
+                    isDrawing={isDrawing}
+                    correctGuess={correctGuess}
+                />
             </div>
         </div>
     );
