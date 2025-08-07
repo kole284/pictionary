@@ -1,12 +1,13 @@
 import React, { useState, useEffect, memo } from 'react';
 import DrawingCanvas from './DrawingCanvas';
+import DrawingCanvasMobile from './DrawingCanvasMobile'; // Važno: Importujte mobilnu komponentu
 import Chat from './Chat';
 import PlayerList from './PlayerList';
 import Timer from './Timer';
 import { db } from '../firebase';
 import { ref as dbRef, onValue, set, push, update, get } from 'firebase/database';
 
-const GameScreen = memo(({ playerId, playerName, gameState, nextRound, gameId, onGameEnd }) => {
+const GameScreen = memo(({ playerId, playerName, gameState, nextRound, gameId, onGameEnd, isMobile }) => {
     const [currentWord, setCurrentWord] = useState('');
     const [messages, setMessages] = useState([]);
     const [drawingHistory, setDrawingHistory] = useState([]);
@@ -124,6 +125,30 @@ const GameScreen = memo(({ playerId, playerName, gameState, nextRound, gameId, o
     const timeLeft = gameState?.game?.timeLeft ?? 0;
     const isDrawing = gameState.gameState.currentDrawer === playerId;
 
+    // Funkcija za uslovno renderovanje
+    const renderDrawingCanvas = () => {
+        if (isMobile) {
+            return (
+                <DrawingCanvasMobile
+                    isDrawing={isDrawing}
+                    onDraw={handleDraw}
+                    onClear={handleClearCanvas}
+                    drawingHistory={drawingHistory}
+                />
+            );
+        } else {
+            return (
+                <DrawingCanvas
+                    isDrawing={isDrawing}
+                    onDraw={handleDraw}
+                    onClear={handleClearCanvas}
+                    drawingHistory={drawingHistory}
+                    currentWord={currentWord} 
+                />
+            );
+        }
+    };
+
     return (
        <div className="game-screen-layout">
             <div className="main-content">
@@ -146,13 +171,7 @@ const GameScreen = memo(({ playerId, playerName, gameState, nextRound, gameId, o
                         )}
                         <Timer timeLeft={timeLeft} />
                     </div>
-                    <DrawingCanvas
-                        isDrawing={isDrawing}
-                        onDraw={handleDraw}
-                        onClear={handleClearCanvas}
-                        drawingHistory={drawingHistory}
-                        currentWord={currentWord} 
-                    />
+                    {renderDrawingCanvas()}
                 </div>
             </div>
             <div className="sidebar">

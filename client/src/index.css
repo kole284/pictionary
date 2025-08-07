@@ -99,7 +99,6 @@ code {
   padding: 20px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
 
-
 }
 
 .player-list h3 {
@@ -109,11 +108,13 @@ code {
 }
 
 .player-item {
+  text-align: center;
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 10px 0;
   border-bottom: 1px solid #f0f0f0;
+  
 }
 
 .player-item:last-child {

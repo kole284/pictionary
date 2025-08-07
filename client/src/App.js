@@ -3,8 +3,11 @@ import LoginScreen from './components/LoginScreen';
 import Lobby from './components/Lobby';
 import GameScreen from './components/GameScreen';
 import GameEndScreen from './components/GameEndScreen';
+import DrawingCanvas from './components/DrawingCanvas';
+import DrawingCanvasMobile from './components/DrawingCanvasMobile'; 
 import { db } from './firebase';
 import { ref as dbRef, set, push, update, remove, onValue, onDisconnect, get } from 'firebase/database';
+
 
 function App() {
     const [playerId, setPlayerId] = useState(null);
@@ -14,6 +17,7 @@ function App() {
     const [error, setError] = useState('');
     const [isHost, setIsHost] = useState(false);
     const [gameId, setGameId] = useState(null);
+    const [isMobile, setIsMobile] = useState(false);
     const timerIntervalRef = useRef(null);
     const roundEndTimeoutRef = useRef(null);
     const heartbeatIntervalRef = useRef(null);
@@ -199,6 +203,15 @@ function App() {
     }, [gameId]);
 
     useEffect(() => {
+      const handleResize = () => {
+        setIsMobile(window.innerWidth < 768);
+      };
+      window.addEventListener('resize', handleResize);
+      handleResize();
+      return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    useEffect(() => {
         if (!gameState) {
             if (!isLoginPhaseRef.current) {
                 setCurrentScreen('login');
@@ -209,7 +222,6 @@ function App() {
         const currentIsHost = gameState?.gameState?.host === playerId;
         setIsHost(currentIsHost);
 
-        // ISPRAVLJENA LOGIKA ZA KRAJ IGRE
         if (gameState.gameState?.winner) {
             setCurrentScreen('gameEnd');
         } else if (gameState.gameState?.inLobby) {
@@ -306,8 +318,7 @@ function App() {
                     gameId={gameId}
                 />
             );
-        case 'game':
-            return (
+        case 'game':            return (
                 <GameScreen
                     playerId={playerId}
                     playerName={playerName}
@@ -315,16 +326,17 @@ function App() {
                     nextRound={isHost ? nextRound : null}
                     gameId={gameId}
                     onGameEnd={() => setCurrentScreen('gameEnd')}
+                    isMobile={isMobile}
                 />
             );
        case 'gameEnd':
             return (
                 <GameEndScreen
-                    gameState={gameState} // DODATO: Prosleđujemo celo stanje igre
+                    gameState={gameState}
                     onPlayAgain={handlePlayAgain}
-                    gameId={gameId} // Dodato i gameId
+                    gameId={gameId}
                 />
-    );
+            );
         default:
             return <LoginScreen onLogin={handleLogin} />;
     }

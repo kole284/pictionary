@@ -22,7 +22,6 @@ const Lobby = ({ players, onStartGame, isHost, gameId }) => {
               <div key={player.playerId} className="player-item">
                 <span className="player-number">{index + 1}</span>
                 <span className="player-name">{player.name}</span>
-                {/* Prikazati ikonicu za hosta samo ako je igrač host */}
                 {isHost && index === 0 && <span className="host-badge">👑 Host</span>}
               </div>
             ))}
