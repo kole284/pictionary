@@ -1,10 +1,8 @@
 import React, { useState } from 'react';
-import LANDiscovery from './LANDiscovery';
 
 const LoginScreen = ({ onLogin, onServerFound }) => {
   const [playerName, setPlayerName] = useState('');
   const [gameId, setGameId] = useState(''); // Dodato za unos ID-a igre
-  const [showLANDiscovery, setShowLANDiscovery] = useState(false);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -14,13 +12,13 @@ const LoginScreen = ({ onLogin, onServerFound }) => {
   };
 
   return (
-    <div className="container login-container">
+    <div className="login-container">
       <div className="game-info">
         <h1 className="game-title">🎨 Pictionary</h1>
         <p className="game-subtitle">Seminarski rad, napravili Lazar Sević 0002/2023 i Nikola Kostić 0464/2023</p>
       </div>
       
-      <div className="card login-card">
+      <div className="card">
         <h2 style={{ textAlign: 'center', marginBottom: '20px', color: '#333' }}>
           Unesite svoje ime
         </h2>
@@ -65,12 +63,6 @@ const LoginScreen = ({ onLogin, onServerFound }) => {
         
        
       </div>
-      
-      {showLANDiscovery && (
-        <div className="card lan-card">
-          <LANDiscovery onServerFound={onServerFound} />
-        </div>
-      )}
     </div>
   );
 };

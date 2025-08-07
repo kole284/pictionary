@@ -1,6 +1,5 @@
 import React from 'react';
 
-// Dodaj 'gameId' u props
 const Lobby = ({ players, onStartGame, isHost, gameId }) => {
   const minPlayers = 2;
   const playersCount = players ? players.length : 0;

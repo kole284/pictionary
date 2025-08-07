@@ -151,6 +151,7 @@ const GameScreen = memo(({ playerId, playerName, gameState, nextRound, gameId, o
                         onDraw={handleDraw}
                         onClear={handleClearCanvas}
                         drawingHistory={drawingHistory}
+                        currentWord={currentWord} 
                     />
                 </div>
             </div>

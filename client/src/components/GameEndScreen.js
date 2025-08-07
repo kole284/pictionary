@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { ref as dbRef, onValue } from 'firebase/database';
 import { db } from '../firebase';
 
-// Dodat gameId kao prop
 const GameEndScreen = ({ onPlayAgain, gameId }) => {
     const [players, setPlayers] = useState({});
     const [gameState, setGameState] = useState(null);
@@ -10,7 +9,6 @@ const GameEndScreen = ({ onPlayAgain, gameId }) => {
     useEffect(() => {
         if (!gameId) return;
 
-        // Ažurirane reference ka novoj strukturi
         const gameRef = dbRef(db, `games/${gameId}/gameState`);
         const playersRef = dbRef(db, `games/${gameId}/players`);
 
@@ -27,7 +25,8 @@ const GameEndScreen = ({ onPlayAgain, gameId }) => {
         };
     }, [gameId]); // Zavisnost od gameId
 
-    if (!gameState || !gameState.winner) {
+    // Proveravamo da li su svi podaci dostupni pre renderovanja
+    if (!gameState || !players || !gameState.winner) {
         return (
             <div className="container">
                 <div className="loading">Čekajte rezultate...</div>
@@ -35,12 +34,19 @@ const GameEndScreen = ({ onPlayAgain, gameId }) => {
         );
     }
     
-    // Transformacija objekta igrača u niz da bi se sortiranje i prikaz
     const finalScores = Object.values(players || {}).sort((a, b) => b.points - a.points);
-    const winner = finalScores[0] || null;
+    const winner = finalScores[0]; 
+
+    if (!winner) {
+        return (
+            <div className="container">
+                <div className="loading">Nije pronađen pobednik.</div>
+            </div>
+        );
+    }
 
     return (
-        <div className="container game-end-screen">
+        <div className="game-end-screen">
             <div className="game-info">
                 <h1 className="game-title">🏆 Kraj igre!</h1>
             </div>

@@ -148,6 +148,7 @@ code {
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
+
 }
 
 .chat-container h3 {
@@ -211,6 +212,7 @@ code {
 }
 
 /* Canvas Styles */
+
 
 .canvas-section {
   flex: 1; /* Omogućava da se canvas rastegne i popuni sav vertikalni prostor */
@@ -292,6 +294,30 @@ code {
 .brush-size {
   width: 100px;
 }
+.canvas-popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.canvas-popup-content {
+  background: white;
+  padding: 16px;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+/*Game Layout */
+
 
 .game-screen-layout {
   display: flex;
@@ -324,7 +350,7 @@ code {
 
 .game-subtitle {
   font-size: 20px;
-  padding:2px;
+  padding:10px;
   opacity: 0.9;
 }
 
@@ -333,7 +359,6 @@ code {
   flex-direction: column;
   width: 300px; /* Fiksna širina */
   gap: 20px;
-  height: 100%;
 }
 
 
@@ -407,7 +432,7 @@ code {
 }
 
 .players-section h2 {
-  color: #2c3e50;
+  color: white;
   margin-bottom: 20px;
 }
 
@@ -510,9 +535,13 @@ code {
 /* Login Screen */
 .login-container {
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
   height: 100%;
+  .game-title{
+    padding: 10px;
+  }
 }
 
 .login-form {
@@ -523,10 +552,11 @@ code {
   text-align: center;
   max-width: 400px;
   width: 100%;
+  .card {
+    width: 50%;
+  }
 }
-.login-card {
-  width: 50%;
-}
+
 .login-details{
   display: flex;
   flex-direction: column;
@@ -539,50 +569,16 @@ code {
 /* Game End Screen */
 .game-end-screen {
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
   min-height: 100vh;
   gap: 15px;
-
-}
-
-.game-end-content {
-  background: white;
-  padding: 40px;
-  border-radius: 15px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  text-align: center;
-  max-width: 500px;
-  width: 100%;
-}
-
-/* Responsive Design */
-@media (max-width: 1200px) {
-  .game-layout {
-    grid-template-columns: 1fr 250px;
+  .game-title{
+    font-size:42px;
   }
-}
-
-@media (max-width: 968px) {
-  .game-layout {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr;
-  }
-  
-  .sidebar {
-    order: -1;
-    flex-direction: row;
-    gap: 20px;
-  }
-  
-  .player-list,
-  .chat-container {
-    flex: 1;
-    min-width: 0;
-  }
-  
-  .chat-container {
-    min-height: 300px;
+  .card{
+    width: 95%;
   }
 }
 
@@ -616,8 +612,16 @@ code {
     gap: 15px;
   }
   
-  .game-layout {
+  .game-screen-layout {
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
     gap: 15px;
+
+    .game-subtitle{
+
+      font-size: 24px;
+    }
   }
   
   .canvas-controls {
@@ -634,72 +638,18 @@ code {
     width: 80px;
   }
 
-  .login-card{
-    width: 90%;
-  }
-}
-
-@media (max-width: 480px) {
-  .container {
-    padding: 5px;
-  }
-  
-  .game-title {
-    font-size: 24px;
-  }
-  
-  .game-subtitle {
-    font-size: 14px;
-  }
-  
-  .lobby-header h1 {
-    font-size: 24px;
-  }
-  
-  .card,
-  .player-list,
-  .chat-container,
-  .canvas-container {
-    padding: 15px;
-  }
-  
-  .btn {
-    padding: 10px 20px;
-    font-size: 14px;
-  }
-  
-  .input {
-    padding: 10px 14px;
-    font-size: 14px;
-  }
-  
-  .timer {
-    font-size: 20px;
-  }
-  
-  .canvas-header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
-  }
-  
-  .drawing-word,
-  .guessing-message {
-    text-align: center;
-  }
-  
-  .player-item {
-    padding: 8px 0;
-  }
-  
-  .message {
-    padding: 6px 10px;
-  }
-  
-  .message-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 2px;
+  .login-container{
+    .game-title{
+      text-align: center;
+      font-size: 40px;
+    }
+    .game-subtitle{
+      text-align: justify;
+      font-size: 16px;
+    }
+    .card {
+      width: 90%;
+    }
   }
 }
 
