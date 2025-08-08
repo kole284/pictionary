@@ -125,7 +125,6 @@ const GameScreen = memo(({ playerId, playerName, gameState, gameId, onGameEnd, i
     const timeLeft = gameState?.game?.timeLeft ?? 0;
     const isDrawing = gameState.gameState.currentDrawer === playerId;
 
-    // Funkcija za uslovno renderovanje
     const renderDrawingCanvas = () => {
         if (isMobile) {
             return (
