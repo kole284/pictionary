@@ -1,5 +1,3 @@
-import React from 'react';
-
 const Lobby = ({ players, onStartGame, isHost, gameId }) => {
   const minPlayers = 2;
   const playersCount = players ? players.length : 0;

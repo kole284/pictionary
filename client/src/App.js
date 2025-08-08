@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import LoginScreen from './components/LoginScreen';
 import Lobby from './components/Lobby';
 import GameScreen from './components/GameScreen';
-import GameEndScreen from './components/GameEndScreen';
-import DrawingCanvas from './components/DrawingCanvas';
-import DrawingCanvasMobile from './components/DrawingCanvasMobile'; 
+import GameEndScreen from './components/GameEndScreen'
 import { db } from './firebase';
 import { ref as dbRef, set, push, update, remove, onValue, onDisconnect, get } from 'firebase/database';
+    
+const words = ["jabuka", "sto", "kuća", "drvo", "lopta", "kompjuter", "telefon", "voda", "sunce"];
 
 
 function App() {
@@ -23,7 +23,6 @@ function App() {
     const heartbeatIntervalRef = useRef(null);
     const isLoginPhaseRef = useRef(false);
 
-    const words = ["jabuka", "sto", "kuća", "drvo", "lopta", "kompjuter", "telefon", "voda", "sunce"];
 
     const cleanupGame = useCallback(async () => {
         if (!gameId) return;
@@ -77,7 +76,7 @@ function App() {
 
         const roundDuration = 60;
         await set(dbRef(db, `games/${gameId}/game/timeLeft`), roundDuration);
-    }, [isHost, words, cleanupGame, gameId]);
+    }, [isHost, cleanupGame, gameId]);
 
     const resetClientState = () => {
         setGameState(null);

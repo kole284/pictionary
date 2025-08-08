@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ref as dbRef, onValue } from 'firebase/database';
 import { db } from '../firebase';
 
@@ -23,9 +23,8 @@ const GameEndScreen = ({ onPlayAgain, gameId }) => {
             unsubGame();
             unsubPlayers();
         };
-    }, [gameId]); // Zavisnost od gameId
+    }, [gameId]); 
 
-    // Proveravamo da li su svi podaci dostupni pre renderovanja
     if (!gameState || !players || !gameState.winner) {
         return (
             <div className="container">

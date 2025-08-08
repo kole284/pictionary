@@ -1,4 +1,4 @@
-import React, { useState, useEffect, memo } from 'react';
+import { useState, useEffect, memo } from 'react';
 import DrawingCanvas from './DrawingCanvas';
 import DrawingCanvasMobile from './DrawingCanvasMobile'; // Važno: Importujte mobilnu komponentu
 import Chat from './Chat';
@@ -7,7 +7,7 @@ import Timer from './Timer';
 import { db } from '../firebase';
 import { ref as dbRef, onValue, set, push, update, get } from 'firebase/database';
 
-const GameScreen = memo(({ playerId, playerName, gameState, nextRound, gameId, onGameEnd, isMobile }) => {
+const GameScreen = memo(({ playerId, playerName, gameState, gameId, onGameEnd, isMobile }) => {
     const [currentWord, setCurrentWord] = useState('');
     const [messages, setMessages] = useState([]);
     const [drawingHistory, setDrawingHistory] = useState([]);

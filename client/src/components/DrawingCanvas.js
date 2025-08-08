@@ -1,5 +1,5 @@
-import React, { useRef, useEffect, useState } from 'react';
-import { ref as dbRef, push, onChildAdded, set, remove } from 'firebase/database';
+import { useRef, useEffect, useState } from 'react';
+import { ref as dbRef, onChildAdded} from 'firebase/database';
 import { db } from '../firebase';
 
 const DrawingCanvas = ({ isDrawing, onDraw, onClear, drawingHistory }) => {
@@ -30,19 +30,16 @@ const DrawingCanvas = ({ isDrawing, onDraw, onClear, drawingHistory }) => {
     }
   }, [color, brushSize]);
 
-  // Replay drawing history or clear canvas
   useEffect(() => {
     const context = contextRef.current;
     if (context) {
-      // Always clear canvas first
       context.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
       
-      // If there's drawing history, replay it
       if (drawingHistory.length > 0) {
         let currentColor = '#000000';
         let currentBrushSize = 2;
         
-        drawingHistory.forEach((point, index) => {
+        drawingHistory.forEach((point) => {
           if (point.color) currentColor = point.color;
           if (point.brushSize) currentBrushSize = point.brushSize;
           
@@ -61,17 +58,9 @@ const DrawingCanvas = ({ isDrawing, onDraw, onClear, drawingHistory }) => {
     }
   }, [drawingHistory]);
 
-  // Replace all socket or REST drawing logic with Firebase logic
-  // When drawing, push points to Firebase:
-  function sendDrawPoint(point) {
-    push(dbRef(db, 'drawingHistory'), point);
-  }
-  // Listen for new points:
   useEffect(() => {
-    const unsub = onChildAdded(dbRef(db, 'drawingHistory'), (snapshot) => {
-      const point = snapshot.val();
-      // Add point to local state for rendering
-      // ...
+    const unsub = onChildAdded(dbRef(db, 'drawingHistory'), () => {
+
     });
     return () => unsub();
   }, []);

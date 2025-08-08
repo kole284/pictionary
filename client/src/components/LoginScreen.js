@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 
-const LoginScreen = ({ onLogin, onServerFound }) => {
+const LoginScreen = ({ onLogin }) => {
   const [playerName, setPlayerName] = useState('');
   const [gameId, setGameId] = useState(''); // Dodato za unos ID-a igre
 

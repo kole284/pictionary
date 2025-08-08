@@ -1,10 +1,7 @@
-import React, { useState, useRef } from 'react';
-import { ref as dbRef, push, onChildAdded } from 'firebase/database';
-import { db } from '../firebase';
+import { useState, useRef } from 'react';
 
 const Chat = ({ messages, onSendMessage, isDrawing, correctGuess }) => {
   const [message, setMessage] = useState('');
-  // `messagesEndRef` ostaje, ali ga više ne koristimo za skrolovanje
   const messagesEndRef = useRef(null);
 
   const handleSubmit = (e) => {
@@ -53,7 +50,6 @@ const Chat = ({ messages, onSendMessage, isDrawing, correctGuess }) => {
             </div>
           </div>
         ))}
-        {/* `ref` ostaje, ali je sada neaktivan */}
         <div ref={messagesEndRef} />
       </div>
       

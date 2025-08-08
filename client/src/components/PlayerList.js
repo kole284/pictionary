@@ -1,7 +1,3 @@
-import React, { useEffect, useState } from 'react';
-import { ref as dbRef, onValue } from 'firebase/database';
-import { db } from '../firebase';
-
 const PlayerList = ({ players, currentDrawer, playerName }) => {
   const sortedPlayers = [...players].sort((a, b) => b.points - a.points);
 

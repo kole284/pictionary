@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { ref as dbRef, onChildAdded  } from 'firebase/database';
 import { db } from '../firebase';
 import { FaPaintBrush, FaArrowsAlt } from 'react-icons/fa'; 
@@ -6,11 +6,10 @@ import { FaPaintBrush, FaArrowsAlt } from 'react-icons/fa';
 const MobileDrawingCanvas = ({ onDraw, onClear, drawingHistory }) => {
   const canvasRef = useRef(null);
   const contextRef = useRef(null);
-  const [isDrawing, setIsDrawing] = useState(false); // Lokalni state za kontrolu crtanja
+  const [isDrawing, setIsDrawing] = useState(false);
   const [color, setColor] = useState('#000000');
-  const [brushSize, setBrushSize] = useState(4); // Malo veća podrazumevana veličina četke
-  const [isDrawingMode, setIsDrawingMode] = useState(false); // Prebacuje se između crtanja i skrolovanja
-
+  const [brushSize, setBrushSize] = useState(4);
+  const [isDrawingMode, setIsDrawingMode] = useState(false); 
   useEffect(() => {
     const canvas = canvasRef.current;
     canvas.width = 600;
@@ -25,7 +24,6 @@ const MobileDrawingCanvas = ({ onDraw, onClear, drawingHistory }) => {
     contextRef.current = context;
   }, [color, brushSize]);
 
-  // Sinhronizuje se sa eksternim stanjem drawingHistory
   useEffect(() => {
     const context = contextRef.current;
     if (context) {
@@ -54,14 +52,9 @@ const MobileDrawingCanvas = ({ onDraw, onClear, drawingHistory }) => {
     }
   }, [drawingHistory]);
   
-  // Firebase listener (neophodan ako se koristi u glavnoj aplikaciji)
-  // `onChildAdded` sluša nove tačke
+
   useEffect(() => {
-    const unsub = onChildAdded(dbRef(db, 'drawingHistory'), (snapshot) => {
-      const point = snapshot.val();
-      // Ovdje biste dodali logiku za ažuriranje lokalnog stanja crteža
-      // Npr. setDrawingHistory(prev => [...prev, point])
-      // Ova logika je verovatno već u nadređenoj komponenti.
+    const unsub = onChildAdded(dbRef(db, 'drawingHistory'), () => {
     });
     return () => unsub();
   }, []);
@@ -93,7 +86,7 @@ const MobileDrawingCanvas = ({ onDraw, onClear, drawingHistory }) => {
 
   const draw = (e) => {
     if (!isDrawingMode || !isDrawing) return;
-    e.preventDefault(); // Sprečava skrolovanje dok se crta
+    e.preventDefault(); 
     const { x, y } = getTouchPos(e);
     
     contextRef.current.lineTo(x, y);
@@ -131,7 +124,7 @@ const MobileDrawingCanvas = ({ onDraw, onClear, drawingHistory }) => {
         style={{ 
           border: '2px solid #e1e5e9',
           borderRadius: '8px',
-          touchAction: 'none', // Ključno za mobilne uređaje
+          touchAction: 'none', 
           cursor: isDrawingMode ? 'crosshair' : 'default',
           userSelect: 'none',
           WebkitUserSelect: 'none',
