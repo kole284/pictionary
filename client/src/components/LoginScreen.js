@@ -15,7 +15,7 @@ const LoginScreen = ({ onLogin }) => {
     <div className="login-container">
       <div className="game-info">
         <h1 className="game-title">🎨 Pictionary</h1>
-        <p className="game-subtitle">Seminarski rad, napravili Lazar Sević 0002/2023 i Nikola Kostić 0464/2023</p>
+        <p className="game-subtitle">Seminarski rad, napravili Lazar Sević 0002/2023, Aleksandar Sekulić 0465/2023 Nikola Kostić 0464/2023</p>
       </div>
       
       <div className="card">

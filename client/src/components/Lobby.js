@@ -27,7 +27,6 @@ const Lobby = ({ players, onStartGame, isHost, gameId }) => {
         </div>
 
         <div className="lobby-info">
-          {/* Nova sekcija za prikaz ID-a igre */}
           <div className="info-card">
             <h3>Kod za ulazak u igru</h3>
             <p>Podelite ovaj kod sa prijateljima da bi se pridružili igri:</p>
@@ -36,7 +35,6 @@ const Lobby = ({ players, onStartGame, isHost, gameId }) => {
             </div>
           </div>
           
-          {/* Postojeći deo sa pravilima */}
           <div className="info-card">
             <h3>Pravila igre</h3>
             <ul>
